@@ -16,10 +16,10 @@ function getDb() {
   if (!db) {
     const dir = path.dirname(path.resolve(DB_PATH));
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    db = new Database(path.resolve(DB_PATH));
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    db.pragma('busy_timeout = 5000');
+    db = new DatabaseSync(path.resolve(DB_PATH)); 
+    db.exec('PRAGMA journal_mode = WAL');
+	db.exec('PRAGMA foreign_keys = ON');
+	db.exec('PRAGMA busy_timeout = 5000');
   }
   return db;
 }
