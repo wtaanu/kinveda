@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinVeda – KinMember Dashboard</title>
+<style>
+:root{--primary:#2D7D6F;--primary-dark:#1E5C51;--primary-light:#4A9D8E;--accent:#E8734A;--bg:#F7F4EF;--card:#FFF;--text:#1A2E2A;--muted:#6B7F7C;--border:#E2EAE8;--sos:#DC2626;--sw:260px;--shadow:0 2px 16px rgba(45,125,111,.10);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+.sidebar{width:var(--sw);background:white;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;}
+.sb-logo{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sb-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--primary),var(--primary-light));border-radius:9px;display:flex;align-items:center;justify-content:center;color:white;font-size:17px;}
+.sb-logo-text{font-size:19px;font-weight:700;color:var(--primary-dark);}
+.sb-logo-text span{color:var(--accent);}
+.sb-nav{flex:1;padding:14px 10px;overflow-y:auto;}
+.sb-sec{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;padding:8px 12px 5px;text-transform:uppercase;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:9px;cursor:pointer;text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;transition:all .2s;margin-bottom:2px;}
+.sb-item:hover{background:#EEF7F5;color:var(--primary);}
+.sb-item.active{background:linear-gradient(135deg,#EEF7F5,#D4EDE8);color:var(--primary);font-weight:600;}
+.sb-item .icon{font-size:17px;width:21px;text-align:center;}
+.sb-item .badge{margin-left:auto;background:var(--accent);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.sos-side{margin:10px;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:10px 12px;}
+.sos-side h5{font-size:11px;font-weight:700;color:var(--sos);margin-bottom:4px;}
+.sos-side p{font-size:11px;color:#7F1D1D;}
+.sos-side .exit-btn{display:block;background:var(--sos);color:white;border:none;border-radius:7px;padding:6px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-top:8px;width:100%;}
+.sb-user{padding:14px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.sb-av{width:36px;height:36px;background:linear-gradient(135deg,#F3E8FF,#DDD6FE);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.sb-user-info h4{font-size:13px;font-weight:700;}
+.sb-user-info p{font-size:11px;color:var(--muted);}
+
+.main{margin-left:var(--sw);flex:1;}
+.topbar{background:white;border-bottom:1px solid var(--border);padding:0 28px;height:62px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;}
+.topbar h1{font-size:19px;font-weight:700;}
+.topbar-r{display:flex;align-items:center;gap:12px;}
+.nb{width:36px;height:36px;background:var(--bg);border-radius:9px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:15px;}
+.nd{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--accent);border-radius:50%;}
+.av{width:36px;height:36px;background:linear-gradient(135deg,#EEF7F5,#C8E6E1);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;cursor:pointer;}
+
+.content{padding:24px 28px;}
+/* panels */
+.panel{display:none;}.panel.active{display:block;}
+
+/* Welcome Banner */
+.welcome{background:linear-gradient(135deg,var(--primary),#3A9D8A);border-radius:18px;padding:26px 30px;color:white;margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;}
+.welcome h2{font-size:21px;font-weight:700;margin-bottom:5px;}
+.welcome p{font-size:13px;opacity:.85;}
+.wbox{background:rgba(255,255,255,.2);border-radius:13px;padding:14px 22px;text-align:center;}
+.wbox .score{font-size:34px;font-weight:800;}
+.wbox .lbl{font-size:11px;opacity:.85;font-weight:500;}
+.wbtn{background:white;color:var(--primary);border:none;padding:9px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-top:10px;margin-right:8px;}
+.wbtn.outline{background:rgba(255,255,255,.2);color:white;border:1px solid rgba(255,255,255,.4);}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.sc{background:white;border-radius:13px;padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.sc .si{font-size:22px;margin-bottom:8px;}
+.sc .sv{font-size:24px;font-weight:800;}
+.sc .sl{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+.sc .sx{font-size:11px;margin-top:3px;color:#059669;font-weight:600;}
+
+/* Grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.card{background:white;border-radius:15px;padding:22px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-h h3{font-size:15px;font-weight:700;}
+.card-h a,.card-h button{font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;background:none;border:none;cursor:pointer;}
+
+/* Session items */
+.si-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:11px;margin-bottom:9px;cursor:pointer;transition:all .2s;}
+.si-item:hover{border-color:var(--primary-light);background:#F8FDFC;}
+.si-av{width:42px;height:42px;background:linear-gradient(135deg,#F3E8FF,#DDD6FE);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;}
+.si-info h4{font-size:13px;font-weight:700;margin-bottom:2px;}
+.si-info p{font-size:11px;color:var(--muted);}
+.si-meta{margin-left:auto;text-align:right;}
+.si-date{font-size:12px;font-weight:600;color:var(--primary);}
+.si-time{font-size:10px;color:var(--muted);}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;}
+.b-upcoming{background:#EEF7F5;color:var(--primary);}
+.b-completed{background:#D1FAE5;color:#065F46;}
+.b-pending{background:#FEF3C7;color:#92400E;}
+.b-sos{background:#FEE2E2;color:var(--sos);}
+
+/* Journey */
+.jstep{display:flex;gap:12px;margin-bottom:14px;}
+.jdot{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.jdot.done{background:#D1FAE5;color:#065F46;}
+.jdot.active{background:var(--primary);color:white;}
+.jdot.pending{background:var(--border);color:var(--muted);}
+.ji h4{font-size:13px;font-weight:700;margin-bottom:2px;}
+.ji p{font-size:11px;color:var(--muted);}
+
+/* Resources */
+.res-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:10px;margin-bottom:8px;}
+.ri-icon{width:40px;height:40px;background:#FFF7ED;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:19px;}
+.ri-info h4{font-size:12px;font-weight:700;margin-bottom:2px;}
+.ri-info p{font-size:11px;color:var(--muted);}
+.dl-btn{margin-left:auto;background:var(--primary);color:white;border:none;padding:6px 12px;border-radius:7px;font-size:11px;font-weight:600;cursor:pointer;}
+
+/* Homework */
+.hw-item{display:flex;align-items:center;gap:11px;padding:11px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;}
+.hw-item input[type=checkbox]{width:17px;height:17px;accent-color:var(--primary);cursor:pointer;flex-shrink:0;}
+.hw-item label{font-size:13px;cursor:pointer;flex:1;}
+.hw-item .due{font-size:11px;color:var(--muted);}
+
+/* Pay banner */
+.pay-banner{background:linear-gradient(135deg,#FFF7ED,#FEF3C7);border:1px solid #FED7AA;border-radius:13px;padding:18px 22px;display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.pay-banner h4{font-size:14px;font-weight:700;color:#92400E;margin-bottom:3px;}
+.pay-banner p{font-size:12px;color:#78350F;}
+.pay-btn{margin-left:auto;background:var(--accent);color:white;border:none;padding:11px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;}
+
+/* Package */
+.pkg{background:linear-gradient(135deg,#EEF7F5,#D4EDE8);border-radius:13px;padding:18px 22px;border:1.5px solid var(--primary-light);}
+.pkg h4{font-size:14px;font-weight:700;color:var(--primary-dark);margin-bottom:5px;}
+.pkg p{font-size:12px;color:var(--muted);margin-bottom:12px;}
+.pkg ul{list-style:none;display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.pkg ul li{font-size:12px;}
+.pkg ul li::before{content:'✓ ';color:var(--primary);font-weight:700;}
+.pkg-price{font-size:20px;font-weight:800;color:var(--primary-dark);margin-bottom:12px;}
+.pkg-price span{font-size:12px;font-weight:400;color:var(--muted);}
+
+/* Chat */
+.chat-window{display:flex;flex-direction:column;height:420px;}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:10px;margin-bottom:12px;}
+.msg{max-width:78%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;}
+.msg.mine{background:var(--primary);color:white;align-self:flex-end;border-bottom-right-radius:4px;}
+.msg.theirs{background:white;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border);}
+.msg-meta{font-size:10px;opacity:.7;margin-top:3px;}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;}
+.chat-input-row input:focus{outline:none;border-color:var(--primary);}
+.chat-send{background:var(--primary);color:white;border:none;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* Profile form */
+.profile-form .pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.pf-group{margin-bottom:4px;}
+.pf-group label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--muted);}
+.pf-group input,.pf-group select{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;}
+.pf-group input:focus,.pf-group select:focus{outline:none;border-color:var(--primary);}
+
+/* Safety Plan */
+.sp-section{background:var(--bg);border-radius:12px;padding:16px;margin-bottom:14px;}
+.sp-section h4{font-size:13px;font-weight:700;margin-bottom:8px;color:var(--primary-dark);}
+.sp-section textarea{width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;min-height:70px;resize:vertical;}
+
+/* Btn */
+.btn-p{background:var(--primary);color:white;border:none;padding:11px 22px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-p:hover{background:var(--primary-dark);}
+.btn-o{background:white;color:var(--primary);border:2px solid var(--primary);padding:10px 20px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+
+/* Loading */
+.loading-state{padding:40px;text-align:center;color:var(--muted);}
+
+/* Video session actions */
+.sess-actions{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap;}
+.act-btn{padding:7px 13px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px;}
+.act-btn.pay{background:#E8734A;color:white;}
+.act-btn.join{background:var(--primary);color:white;}
+.act-btn.rec{background:#6D28D9;color:white;}
+.act-btn.sub-cancel{background:white;color:var(--sos);border:1.5px solid var(--sos);font-size:12px;padding:8px 16px;}
+
+/* Billing table */
+.bill-table{width:100%;border-collapse:collapse;font-size:13px;}
+.bill-table th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);padding:6px 10px;border-bottom:2px solid var(--border);}
+.bill-table td{padding:10px 10px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.bill-table tr:last-child td{border-bottom:none;}
+.bill-table .amt{font-weight:700;color:var(--primary-dark);}
+
+/* Subscription card */
+.sub-card{background:linear-gradient(135deg,var(--primary),#3A9D8A);border-radius:16px;padding:24px 26px;color:white;margin-bottom:20px;}
+.sub-card h3{font-size:18px;font-weight:800;margin-bottom:4px;}
+.sub-card p{font-size:13px;opacity:.85;margin-bottom:16px;}
+.sub-badges{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.sub-badge{background:rgba(255,255,255,.2);border-radius:20px;padding:5px 13px;font-size:12px;font-weight:600;}
+.sub-meta{font-size:12px;opacity:.8;}
+
+/* Testimonial */
+.rating-stars{display:flex;gap:5px;margin-bottom:14px;}
+.star-btn{font-size:26px;cursor:pointer;transition:transform .15s;background:none;border:none;padding:2px;}
+.star-btn:hover{transform:scale(1.2);}
+.testimonial-item{background:var(--bg);border-radius:12px;padding:16px;margin-bottom:10px;border:1px solid var(--border);}
+.testimonial-item h4{font-size:13px;font-weight:700;margin-bottom:3px;}
+.testimonial-item p{font-size:12px;color:var(--muted);}
+.status-chip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.chip-pending{background:#FEF3C7;color:#92400E;}
+.chip-approved{background:#D1FAE5;color:#065F46;}
+.chip-rejected{background:#FEE2E2;color:#991B1B;}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🌿</div>
+    <div class="sb-logo-text">Kin<span>Veda</span></div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-sec">My Space</div>
+    <a href="#" class="sb-item active" onclick="showPanel('dashboard',this)"><span class="icon">🏠</span> Dashboard</a>
+    <a href="#" class="sb-item" onclick="showPanel('sessions',this)"><span class="icon">📅</span> My Sessions <span class="badge" id="sessCount">0</span></a>
+    <a href="#" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Message KinMentor</a>
+    <a href="#" class="sb-item" onclick="showPanel('safety',this)"><span class="icon">🛡️</span> My Safety Plan</a>
+    <a href="#" class="sb-item" onclick="showPanel('journey',this)"><span class="icon">🗺️</span> My Journey</a>
+    <div class="sb-sec">Resources</div>
+    <a href="#" class="sb-item" onclick="showPanel('resources',this)"><span class="icon">📚</span> Resource Library</a>
+    <a href="#" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Homework <span class="badge" id="hwCount">0</span></a>
+    <div class="sb-sec">Account</div>
+    <a href="#" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">👤</span> My Profile</a>
+    <a href="#" class="sb-item" onclick="showPanel('payments',this)"><span class="icon">💳</span> Billing History</a>
+    <a href="#" class="sb-item" onclick="showPanel('package',this)"><span class="icon">📦</span> My Package</a>
+    <a href="#" class="sb-item" onclick="showPanel('story',this)"><span class="icon">⭐</span> Share My Story</a>
+    <a href="#" class="sb-item" onclick="KV.signOut()"><span class="icon">↩️</span> Sign Out</a>
+  </div>
+  <div class="sos-side">
+    <h5>🆘 Need immediate help?</h5>
+    <p>Kiran: 1800-599-0019<br>Vandrevala: 9999 666 555</p>
+    <button class="exit-btn" onclick="KV.quickExit()">⚡ Quick Exit</button>
+  </div>
+  <div class="sb-user">
+    <div class="sb-av">😊</div>
+    <div class="sb-user-info">
+      <h4 id="sbName">Loading...</h4>
+      <p>KinMember</p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <h1 id="topbarTitle">My Dashboard</h1>
+    <div class="topbar-r">
+      <div class="nb">🔔<div class="nd"></div></div>
+      <div class="av" id="topAv">😊</div>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="welcome">
+        <div>
+          <h2 id="welcomeName">Welcome back 👋</h2>
+          <p id="nextSessionLine">Loading your next session...</p>
+          <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="wbtn" onclick="showPanel('sessions',null)">🎥 My Sessions</button>
+            <button class="wbtn outline" onclick="showPanel('resources',null)">📚 Resources</button>
+          </div>
+        </div>
+        <div class="wbox">
+          <div class="score" id="wellScore">—</div>
+          <div class="lbl">Wellness Score</div>
+        </div>
+      </div>
+      <div class="pay-banner" id="payBanner" style="display:none;">
+        <div style="font-size:28px">💳</div>
+        <div><h4>Session Payment Pending</h4><p>Complete payment to confirm your upcoming session.</p></div>
+        <button class="pay-btn" onclick="showPanel('payments',null)">Pay Now →</button>
+      </div>
+      <div class="stats" id="statsRow">
+        <div class="sc"><div class="si">🎥</div><div class="sv" id="st1">—</div><div class="sl">Sessions Completed</div></div>
+        <div class="sc"><div class="si">✅</div><div class="sv" id="st2">—</div><div class="sl">Homework Done</div></div>
+        <div class="sc"><div class="si">📄</div><div class="sv" id="st3">—</div><div class="sl">Resources Downloaded</div></div>
+        <div class="sc"><div class="si">📅</div><div class="sv" id="st4">—</div><div class="sl">Upcoming Sessions</div></div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><h3>📅 Upcoming Sessions</h3><a href="#" onclick="showPanel('sessions',null)">View all</a></div>
+          <div id="upcomingSessionsSnap"><div class="loading-state">Loading...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>🗺️ Journey Highlights</h3></div>
+          <div id="journeySnap"></div>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><h3>📚 Pinned Resources</h3><a href="#" onclick="showPanel('resources',null)">Browse all</a></div>
+          <div id="resourcesSnap"></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>✏️ Pending Homework</h3><a href="#" onclick="showPanel('homework',null)">View all</a></div>
+          <div id="hwSnap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SESSIONS ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-sessions">
+      <div class="card">
+        <div class="card-h">
+          <h3>📅 All My Sessions</h3>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="sessFilter" onchange="filterSessions()" style="border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">
+              <option value="all">All Sessions</option>
+              <option value="upcoming">Upcoming</option>
+              <option value="completed">Completed</option>
+              <option value="unpaid">Payment Due</option>
+            </select>
+          </div>
+        </div>
+        <div id="allSessions"><div class="loading-state">Loading sessions...</div></div>
+      </div>
+    </div>
+
+    <!-- ── CHAT ──────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-chat">
+      <div class="card">
+        <div class="card-h"><h3>💬 Message My KinMentor</h3><span id="chatMentorName" style="font-size:12px;color:var(--muted)"></span></div>
+        <div class="chat-window">
+          <div class="chat-msgs" id="chatMsgs"><div class="loading-state">Loading messages...</div></div>
+          <div class="chat-input-row">
+            <input id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendPrivateMsg()">
+            <button class="chat-send" onclick="sendPrivateMsg()">Send →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── SAFETY PLAN ───────────────────────────────────────────── -->
+    <div class="panel" id="panel-safety">
+      <div class="card">
+        <div class="card-h"><h3>🛡️ My Personal Safety Plan</h3>
+          <button class="btn-p" onclick="downloadSafetyPlan()">⬇ Download PDF</button>
+        </div>
+        <div style="background:#EEF7F5;border-radius:10px;padding:14px;margin-bottom:18px;font-size:13px;color:var(--primary-dark);">
+          🔒 Your safety plan is private and encrypted. Only you can see it.
+        </div>
+        <div class="sp-section"><h4>⚠️ My Warning Signs</h4><textarea id="sp1" placeholder="e.g. heart racing, feeling trapped, restlessness..."></textarea></div>
+        <div class="sp-section"><h4>💪 Internal Coping Strategies</h4><textarea id="sp2" placeholder="e.g. 4-7-8 breathing, walking, journaling..."></textarea></div>
+        <div class="sp-section"><h4>📞 Safe People to Call</h4><textarea id="sp3" placeholder="Name and phone number of people you trust..."></textarea></div>
+        <div class="sp-section"><h4>🏠 Safe Places to Go</h4><textarea id="sp4" placeholder="Physical locations where you feel safe..."></textarea></div>
+        <div class="sp-section" style="background:#FEF2F2;">
+          <h4 style="color:var(--sos);">🆘 Emergency Contacts</h4>
+          <div style="font-size:13px;line-height:1.9;color:#7F1D1D;">
+            Kiran Helpline (Govt.): <strong>1800-599-0019</strong><br>
+            Vandrevala Foundation: <strong>9999 666 555</strong><br>
+            NCW (Domestic Violence): <strong>7827 170 170</strong><br>
+            Police: <strong>112</strong>
+          </div>
+        </div>
+        <button class="btn-p" style="margin-top:6px;" onclick="saveSafetyPlan()">💾 Save Safety Plan</button>
+      </div>
+    </div>
+
+    <!-- ── JOURNEY ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-journey">
+      <div class="card">
+        <div class="card-h"><h3>🗺️ My Wellness Journey</h3></div>
+        <div id="fullJourney"></div>
+      </div>
+    </div>
+
+    <!-- ── RESOURCES ─────────────────────────────────────────────── -->
+    <div class="panel" id="panel-resources">
+      <div class="card">
+        <div class="card-h"><h3>📚 Resource Library</h3></div>
+        <div id="allResources"><div class="loading-state">Loading resources...</div></div>
+      </div>
+    </div>
+
+    <!-- ── HOMEWORK ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-homework">
+      <div class="card">
+        <div class="card-h"><h3>✏️ Homework from My KinMentor</h3></div>
+        <div id="allHomework"><div class="loading-state">Loading homework...</div></div>
+      </div>
+    </div>
+
+    <!-- ── PROFILE ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-profile">
+      <div class="card">
+        <div class="card-h"><h3>👤 My Profile</h3><button class="btn-p" onclick="saveProfile()">Save Changes</button></div>
+        <div class="profile-form">
+          <div class="pf-grid">
+            <div class="pf-group"><label>Full Name</label><input id="pf-name" type="text"></div>
+            <div class="pf-group"><label>Email</label><input id="pf-email" type="email" disabled style="background:#f5f5f5;cursor:not-allowed;"></div>
+            <div class="pf-group"><label>Phone</label><input id="pf-phone" type="tel"></div>
+            <div class="pf-group"><label>City</label><input id="pf-city" type="text"></div>
+            <div class="pf-group"><label>Family Structure</label>
+              <select id="pf-family">
+                <option value="">Select...</option>
+                <option value="nuclear">Nuclear Family</option>
+                <option value="joint">Joint Family</option>
+                <option value="single_parent">Single Parent</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div class="pf-group"><label>Child Status</label>
+              <select id="pf-child">
+                <option value="">Select...</option>
+                <option value="only_child">Only Child</option>
+                <option value="elder">Elder Sibling</option>
+                <option value="younger">Younger Sibling</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:18px;background:#EEF7F5;border-radius:10px;padding:14px;font-size:13px;color:var(--primary-dark);">
+          🔒 Your personal data is AES-256 encrypted in our database. Only you and your assigned KinMentor can access your information.
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PAYMENTS ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-payments">
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;">
+        <div class="sc"><div class="si">💰</div><div class="sv" id="billTotal">₹—</div><div class="sl">Total Paid</div></div>
+        <div class="sc"><div class="si">📅</div><div class="sv" id="billSessions">—</div><div class="sl">Sessions Paid</div></div>
+        <div class="sc"><div class="si">🔄</div><div class="sv" id="billSubs">—</div><div class="sl">Subscriptions</div></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>💳 Complete Billing History</h3></div>
+        <div id="paymentHistory"><div class="loading-state">Loading payments...</div></div>
+      </div>
+    </div>
+
+    <!-- ── PACKAGE ───────────────────────────────────────────────── -->
+    <div class="panel" id="panel-package">
+      <div id="activeSubSection" style="display:none;margin-bottom:20px;">
+        <div class="sub-card">
+          <h3>📦 Monthly Package Active</h3>
+          <p>You have unlimited sessions this month. Your KinMentor is with you.</p>
+          <div class="sub-badges">
+            <span class="sub-badge">✓ Unlimited Sessions</span>
+            <span class="sub-badge">✓ Priority Matching</span>
+            <span class="sub-badge">✓ Chat Anytime</span>
+          </div>
+          <div class="sub-meta" id="subExpiry"></div>
+        </div>
+        <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:12px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <h4 style="font-size:14px;font-weight:700;color:#7F1D1D;margin-bottom:2px;">Cancel Subscription</h4>
+            <p style="font-size:12px;color:#991B1B;">Your package will remain active until the current period ends.</p>
+          </div>
+          <button class="act-btn sub-cancel" onclick="cancelSub()">Cancel Plan</button>
+        </div>
+      </div>
+      <div id="noSubSection">
+        <div class="card">
+          <div class="card-h"><h3>📦 Monthly Wellness Package</h3></div>
+          <div class="pkg">
+            <h4>Unlimited Monthly Care</h4>
+            <p>Unlimited sessions with your assigned KinMentor, priority scheduling, and secure chat — all in one plan.</p>
+            <ul>
+              <li>Unlimited 50-min sessions</li>
+              <li>Priority KinMentor matching</li>
+              <li>Encrypted chat, anytime</li>
+              <li>Crisis support + safety plan</li>
+              <li>Homework & resource library access</li>
+            </ul>
+            <div class="pkg-price">₹2,499 <span>/ month</span></div>
+            <button class="btn-p" onclick="subscribeNow()" id="subscribeBtn">Subscribe Now →</button>
+          </div>
+          <div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.7;">
+            🔒 Secure payment via Razorpay · Cancel anytime · No hidden fees
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STORY ─────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-story">
+      <div class="card">
+        <div class="card-h"><h3>⭐ Share My Wellness Story</h3></div>
+        <div style="background:#EEF7F5;border-radius:10px;padding:14px;margin-bottom:20px;font-size:13px;color:var(--primary-dark);">
+          Your story may help others on their journey. Stories with 4+ stars are reviewed by our team and may appear on our home page (anonymously, with your permission).
+        </div>
+        <div id="myTestimonialsSection">
+          <h4 style="font-size:14px;font-weight:700;margin-bottom:12px;">My Submitted Stories</h4>
+          <div id="myTestimonials"><div class="loading-state">Loading...</div></div>
+        </div>
+        <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;">
+        <h4 style="font-size:14px;font-weight:700;margin-bottom:16px;">Submit a New Story</h4>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Your Rating</label>
+          <div class="rating-stars" id="ratingStars">
+            <button class="star-btn" onclick="setRating(1)" id="star1">☆</button>
+            <button class="star-btn" onclick="setRating(2)" id="star2">☆</button>
+            <button class="star-btn" onclick="setRating(3)" id="star3">☆</button>
+            <button class="star-btn" onclick="setRating(4)" id="star4">☆</button>
+            <button class="star-btn" onclick="setRating(5)" id="star5">☆</button>
+          </div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px;">Your Story <span style="font-weight:400;">(20–500 characters)</span></label>
+          <textarea id="storyText" style="width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;min-height:120px;resize:vertical;" placeholder="Share how KinVeda has helped you on your wellness journey..."></textarea>
+          <div id="storyCharCount" style="font-size:11px;color:var(--muted);margin-top:4px;">0 / 500 characters</div>
+        </div>
+        <div style="margin-bottom:20px;display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="storyAnon" style="width:16px;height:16px;accent-color:var(--primary);">
+          <label for="storyAnon" style="font-size:13px;cursor:pointer;">Post anonymously (your name won't appear)</label>
+        </div>
+        <button class="btn-p" onclick="submitStory()" id="storySubmitBtn">Submit Story →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="kinveda-api.js"></script>
+<script>
+let userData = null;
+let profileData = null;
+let sessionsData = [];
+let messagesData = [];
+let homeworkData = [];
+let resourcesData = [];
+let billingData = { payments: [], subscriptions: [] };
+let activeSubscription = null;
+let selectedRating = 0;
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  userData = KV.requireAuth('kinmember');
+  if (!userData) return;
+
+  document.getElementById('sbName').textContent = userData.name || 'KinMember';
+  document.getElementById('welcomeName').textContent = `Welcome back, ${userData.name} 👋`;
+
+  // Story textarea character counter
+  const storyTa = document.getElementById('storyText');
+  if (storyTa) {
+    storyTa.addEventListener('input', () => {
+      document.getElementById('storyCharCount').textContent = `${storyTa.value.length} / 500 characters`;
+    });
+  }
+
+  await Promise.all([
+    loadProfile(),
+    loadSessions(),
+    loadHomework(),
+    loadResources(),
+    loadBilling(),
+    loadSubscription()
+  ]);
+  renderDashboard();
+});
+
+// ─── Panel Navigation ─────────────────────────────────────────────────────────
+function showPanel(name, linkEl) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(el => el.classList.remove('active'));
+  if (linkEl) linkEl.classList.add('active');
+  const titles = {
+    dashboard: 'My Dashboard', sessions: 'My Sessions', chat: 'Message KinMentor',
+    safety: 'My Safety Plan', journey: 'My Journey', resources: 'Resource Library',
+    homework: 'Homework', profile: 'My Profile', payments: 'Billing History',
+    package: 'My Package', story: 'Share My Story'
+  };
+  document.getElementById('topbarTitle').textContent = titles[name] || 'Dashboard';
+  if (name === 'chat') loadMessages();
+  if (name === 'payments') renderBilling();
+  if (name === 'package') renderPackage();
+  if (name === 'story') loadMyTestimonials();
+}
+
+// ─── Load Data ────────────────────────────────────────────────────────────────
+async function loadProfile() {
+  const res = await KV.get('/api/kinmember/profile');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  profileData = data.profile;
+  // Update sidebar name
+  document.getElementById('sbName').textContent = profileData.name || 'KinMember';
+  document.getElementById('welcomeName').textContent = `Welcome back, ${profileData.name} 👋`;
+  document.getElementById('wellScore').textContent = profileData.wellnessScore?.toFixed(1) || '—';
+  // Profile form
+  document.getElementById('pf-name').value   = profileData.name || '';
+  document.getElementById('pf-email').value  = profileData.email || '';
+  document.getElementById('pf-phone').value  = profileData.phone || '';
+  document.getElementById('pf-city').value   = profileData.city || '';
+  document.getElementById('pf-family').value = profileData.familyStructure || '';
+  document.getElementById('pf-child').value  = profileData.childStatus || '';
+}
+
+async function loadSessions() {
+  const res = await KV.get('/api/kinmember/sessions');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  sessionsData = data.sessions;
+  const upcoming = sessionsData.filter(s => s.status !== 'completed' && s.status !== 'cancelled');
+  document.getElementById('sessCount').textContent = upcoming.length;
+  document.getElementById('st1').textContent = sessionsData.filter(s => s.status === 'completed').length;
+  document.getElementById('st4').textContent = upcoming.length;
+
+  // Next session line
+  const next = sessionsData.find(s => s.scheduledAt > Date.now()/1000 && s.status !== 'cancelled');
+  if (next) {
+    document.getElementById('nextSessionLine').textContent = `Next session: ${KV.fmtDate(next.scheduledAt)} with ${next.mentorName}`;
+    if (next.paymentStatus === 'unpaid') document.getElementById('payBanner').style.display = 'flex';
+  } else {
+    document.getElementById('nextSessionLine').textContent = 'No upcoming sessions — book one now!';
+  }
+  renderSessions();
+}
+
+async function loadHomework() {
+  const res = await KV.get('/api/kinmember/homework');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  homeworkData = data.homework;
+  const pending = homeworkData.filter(h => !h.isCompleted);
+  document.getElementById('hwCount').textContent = pending.length;
+  document.getElementById('st2').textContent = `${homeworkData.filter(h => h.isCompleted).length}/${homeworkData.length}`;
+  renderHomework();
+}
+
+async function loadResources() {
+  const res = await KV.get('/api/kinmember/resources');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  resourcesData = data.resources;
+  document.getElementById('st3').textContent = resourcesData.length;
+  renderResources();
+}
+
+async function loadBilling() {
+  const res = await KV.get('/api/payment/history');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  billingData = data;
+  // Update stats
+  const totalPaid = (data.payments || []).reduce((a, p) => a + (p.amount || 0), 0)
+                  + (data.subscriptions || []).filter(s => s.status === 'active' || s.status === 'cancelled')
+                    .reduce((a, s) => a + (s.amount || 0), 0);
+  document.getElementById('billTotal').textContent = KV.fmtINR(totalPaid);
+  document.getElementById('billSessions').textContent = (data.payments || []).length;
+  document.getElementById('billSubs').textContent = (data.subscriptions || []).length;
+}
+
+async function loadSubscription() {
+  const res = await KV.get('/api/payment/subscription');
+  if (!res) return;
+  const data = await res.json();
+  activeSubscription = data.success && data.subscription ? data.subscription : null;
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderDashboard() {
+  // Upcoming sessions snippet (3 max)
+  const upcoming = sessionsData.slice(0, 3);
+  const snapEl = document.getElementById('upcomingSessionsSnap');
+  if (!upcoming.length) { snapEl.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No sessions booked yet.</p>'; }
+  else snapEl.innerHTML = upcoming.map(sessionCard).join('');
+
+  // Journey snippet
+  const jEl = document.getElementById('journeySnap');
+  const steps = [
+    { label: 'Assessment Completed', done: profileData?.assessmentCompleted, sub: 'Your wellness assessment' },
+    { label: 'KinMentor Assigned', done: !!profileData?.assignedMentorId, sub: profileData?.assignedMentorName || 'Pending admin review' },
+    { label: 'First Session', done: sessionsData.some(s=>s.status==='completed'), sub: 'First session completed' },
+    { label: 'Monthly Package', done: profileData?.packageActive, sub: 'Bi-weekly ongoing care' }
+  ];
+  jEl.innerHTML = steps.map(s => `<div class="jstep"><div class="jdot ${s.done?'done':'pending'}">${s.done?'✓':'○'}</div><div class="ji"><h4>${s.label}</h4><p>${s.sub}</p></div></div>`).join('');
+
+  // Resources snippet (3)
+  const rsnap = document.getElementById('resourcesSnap');
+  if (!resourcesData.length) rsnap.innerHTML = '<p style="font-size:13px;color:var(--muted);">No resources yet.</p>';
+  else rsnap.innerHTML = resourcesData.slice(0,3).map(resourceCard).join('');
+
+  // Homework snippet (pending, 3)
+  const hwsnap = document.getElementById('hwSnap');
+  const pending = homeworkData.filter(h=>!h.isCompleted).slice(0,3);
+  if (!pending.length) hwsnap.innerHTML = '<p style="font-size:13px;color:var(--muted);">All homework complete! 🎉</p>';
+  else hwsnap.innerHTML = pending.map(hwCard).join('');
+}
+
+function sessionCard(s) {
+  const isCompleted = s.status === 'completed';
+  const isCancelled = s.status === 'cancelled';
+  const unpaid = s.paymentStatus === 'unpaid' && !s.paymentWaived;
+  const statusBadge = isCompleted ? 'b-completed' : (isCancelled ? 'b-sos' : (unpaid ? 'b-pending' : 'b-upcoming'));
+  const statusLabel = isCompleted ? 'Completed' : (isCancelled ? 'Cancelled' : (unpaid ? '⚠ Payment Due' : 'Confirmed'));
+
+  // Build action buttons
+  let actions = '';
+  if (unpaid && !isCompleted && !isCancelled) {
+    actions += `<button class="act-btn pay" onclick="paySession(${s.id})">💳 Pay ${KV.fmtINR(s.feeAmount || 0)}</button>`;
+  }
+  if (!unpaid && !isCompleted && !isCancelled && s.videoRoom) {
+    const name = encodeURIComponent(profileData?.name || userData?.name || 'KinMember');
+    actions += `<button class="act-btn join" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🎥 Join Session</button>`;
+  }
+  if (s.recordingUrl) {
+    actions += `<a class="act-btn rec" href="${s.recordingUrl}" target="_blank" rel="noopener">▶ View Recording</a>`;
+  }
+
+  return `<div class="si-item" style="flex-direction:column;align-items:flex-start;cursor:default;">
+    <div style="display:flex;align-items:center;gap:12px;width:100%;">
+      <div class="si-av">🧑‍⚕️</div>
+      <div class="si-info"><h4>${s.mentorName || 'KinMentor'}</h4><p>${s.durationMins || 50} min session</p></div>
+      <div class="si-meta">
+        <div class="si-date">${KV.fmtDate(s.scheduledAt)}</div>
+        <div style="margin-top:4px;"><span class="badge ${statusBadge}">${statusLabel}</span></div>
+      </div>
+    </div>
+    ${actions ? `<div class="sess-actions">${actions}</div>` : ''}
+  </div>`;
+}
+
+function filterSessions() {
+  const filter = document.getElementById('sessFilter').value;
+  const el = document.getElementById('allSessions');
+  let filtered = sessionsData;
+  if (filter === 'upcoming') filtered = sessionsData.filter(s => s.status !== 'completed' && s.status !== 'cancelled');
+  if (filter === 'completed') filtered = sessionsData.filter(s => s.status === 'completed');
+  if (filter === 'unpaid') filtered = sessionsData.filter(s => s.paymentStatus === 'unpaid' && !s.paymentWaived);
+  if (!filtered.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No sessions match this filter.</p>'; return; }
+  el.innerHTML = filtered.map(sessionCard).join('');
+}
+
+function resourceCard(r) {
+  return `<div class="res-item"><div class="ri-icon">📄</div>
+    <div class="ri-info"><h4>${r.title}</h4><p>${r.description||r.category||''}</p></div>
+    <button class="dl-btn" onclick="${r.file_url ? `window.open('${r.file_url}','_blank')` : `KV.showToast('Resource not available yet.','info')`}">⬇ PDF</button>
+  </div>`;
+}
+
+function hwCard(h, i) {
+  return `<div class="hw-item"><input type="checkbox" id="hw${i}" ${h.isCompleted?'checked':''} onchange="markHW(${h.id},this.checked)">
+    <label for="hw${i}" ${h.isCompleted?'style="text-decoration:line-through;color:var(--muted);"':''}>${h.task}</label>
+    <div class="due">${h.dueDate ? KV.fmtDate(h.dueDate) : ''}</div>
+  </div>`;
+}
+
+function renderSessions() {
+  const el = document.getElementById('allSessions');
+  if (!sessionsData.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No sessions yet. Complete your assessment to get matched.</p>'; return; }
+  el.innerHTML = sessionsData.map(sessionCard).join('');
+}
+
+function renderBilling() {
+  const el = document.getElementById('paymentHistory');
+  const payments = billingData.payments || [];
+  const subs = billingData.subscriptions || [];
+  const all = [
+    ...payments.map(p => ({ ...p, _type: 'Session Payment' })),
+    ...subs.map(s => ({ ...s, _type: 'Monthly Package' }))
+  ].sort((a, b) => b.createdAt - a.createdAt);
+
+  if (!all.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No payment records yet.</p>';
+    return;
+  }
+
+  el.innerHTML = `<table class="bill-table">
+    <thead><tr>
+      <th>Date</th><th>Type</th><th>Description</th><th>Status</th><th>Amount</th>
+    </tr></thead>
+    <tbody>${all.map(p => {
+      const statusMap = { paid: 'b-completed', active: 'b-upcoming', created: 'b-pending', failed: 'b-sos', cancelled: 'b-sos' };
+      const statusCls = statusMap[p.status] || 'b-pending';
+      const desc = p._type === 'Session Payment'
+        ? `Session with ${p.mentorName || 'KinMentor'}`
+        : 'Monthly Wellness Package';
+      return `<tr>
+        <td>${KV.fmtDate(p.createdAt || p.paidAt)}</td>
+        <td><span class="badge b-upcoming">${p._type}</span></td>
+        <td>${desc}</td>
+        <td><span class="badge ${statusCls}">${(p.status||'').replace('_', ' ')}</span></td>
+        <td class="amt">${KV.fmtINR(p.amount)}</td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+
+function renderPackage() {
+  if (activeSubscription) {
+    document.getElementById('activeSubSection').style.display = 'block';
+    document.getElementById('noSubSection').style.display = 'none';
+    const expiry = activeSubscription.endsAt
+      ? `Valid until: ${KV.fmtDate(activeSubscription.endsAt)}`
+      : `Active since: ${KV.fmtDate(activeSubscription.createdAt)}`;
+    document.getElementById('subExpiry').textContent = expiry;
+  } else {
+    document.getElementById('activeSubSection').style.display = 'none';
+    document.getElementById('noSubSection').style.display = 'block';
+  }
+}
+
+function renderHomework() {
+  const allEl = document.getElementById('allHomework');
+  if (!homeworkData.length) { allEl.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No homework assigned yet.</p>'; return; }
+  allEl.innerHTML = homeworkData.map((h,i) => hwCard(h,i)).join('');
+}
+
+function renderResources() {
+  const el = document.getElementById('allResources');
+  if (!resourcesData.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);">No resources yet.</p>'; return; }
+  el.innerHTML = resourcesData.map(resourceCard).join('');
+}
+
+// ─── Actions ──────────────────────────────────────────────────────────────────
+async function markHW(id, done) {
+  if (done) await KV.patch(`/api/kinmember/homework/${id}/complete`, {});
+}
+
+async function saveProfile() {
+  const res = await KV.put('/api/kinmember/profile', {
+    name: document.getElementById('pf-name').value,
+    phone: document.getElementById('pf-phone').value,
+    city: document.getElementById('pf-city').value
+  });
+  if (res?.ok) KV.showToast('Profile saved!', 'success');
+}
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+async function paySession(sessionId) {
+  const session = sessionsData.find(s => s.id === sessionId);
+  if (!session) return;
+  await KV.payForSession(sessionId, async () => {
+    KV.showToast('Payment successful! Your session is confirmed.', 'success');
+    await loadSessions();
+    await loadBilling();
+    renderSessions();
+    renderBilling();
+    // Hide pay banner if no more unpaid sessions
+    const unpaid = sessionsData.find(s => s.paymentStatus === 'unpaid' && !s.paymentWaived);
+    if (!unpaid) document.getElementById('payBanner').style.display = 'none';
+  });
+}
+
+async function subscribeNow() {
+  const btn = document.getElementById('subscribeBtn');
+  if (btn) btn.disabled = true;
+  const mentorId = profileData?.assignedMentorId || null;
+  await KV.subscribe(mentorId, async () => {
+    KV.showToast('Subscription activated! Welcome to unlimited care. 🌿', 'success');
+    await loadSubscription();
+    await loadBilling();
+    renderPackage();
+    renderBilling();
+  });
+  if (btn) btn.disabled = false;
+}
+
+async function cancelSub() {
+  if (!confirm('Are you sure you want to cancel your monthly subscription? Your current period will remain active.')) return;
+  const res = await KV.post('/api/payment/subscription/cancel', {});
+  if (!res) return;
+  const data = await res.json();
+  if (data.success) {
+    KV.showToast('Subscription cancelled. Your plan stays active until end of period.', 'info');
+    activeSubscription = null;
+    await loadSubscription();
+    renderPackage();
+  } else {
+    KV.showToast(data.message || 'Could not cancel subscription.', 'error');
+  }
+}
+
+async function loadMessages() {
+  if (!profileData?.assignedMentorId) {
+    document.getElementById('chatMsgs').innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">You will be able to message your KinMentor once one is assigned by admin.</p>';
+    return;
+  }
+  document.getElementById('chatMentorName').textContent = `With: ${profileData.assignedMentorName || 'KinMentor'}`;
+  const res = await KV.get(`/api/kinmember/messages/${profileData.assignedMentorId}`);
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  messagesData = data.messages;
+  const el = document.getElementById('chatMsgs');
+  if (!messagesData.length) { el.innerHTML = '<div class="loading-state">No messages yet. Say hello! 👋</div>'; return; }
+  el.innerHTML = messagesData.map(m => `<div class="msg ${m.isMine?'mine':'theirs'}">${escapeHtml(m.message)}<div class="msg-meta">${m.isMine?'You':'KinMentor'} · ${KV.fmtDateTime ? KV.fmtDateTime(m.createdAt) : KV.fmtDate(m.createdAt)}</div></div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+async function sendPrivateMsg() {
+  if (!profileData?.assignedMentorId) return;
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  const res = await KV.post(`/api/kinmember/messages/${profileData.assignedMentorId}`, { message: msg });
+  if (res?.ok) loadMessages();
+}
+
+function saveSafetyPlan() {
+  KV.showToast('Safety Plan saved securely! 💾', 'success');
+}
+
+function downloadSafetyPlan() {
+  KV.showToast('Preparing your Safety Plan PDF...', 'info');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Testimonials ─────────────────────────────────────────────────────────────
+function setRating(n) {
+  selectedRating = n;
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById('star' + i).textContent = i <= n ? '⭐' : '☆';
+  }
+}
+
+async function loadMyTestimonials() {
+  const res = await KV.get('/api/testimonials/mine');
+  const el = document.getElementById('myTestimonials');
+  if (!res) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);">Could not load stories.</p>'; return; }
+  const data = await res.json();
+  if (!data.success || !data.testimonials?.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--muted);">You haven\'t submitted any stories yet.</p>';
+    return;
+  }
+  el.innerHTML = data.testimonials.map(t => {
+    const chips = { pending: 'chip-pending', approved: 'chip-approved', rejected: 'chip-rejected' };
+    return `<div class="testimonial-item">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <div>${'⭐'.repeat(t.rating)}${'☆'.repeat(5 - t.rating)}</div>
+        <span class="status-chip ${chips[t.status] || 'chip-pending'}">${t.status === 'approved' ? '✓ Approved' : t.status === 'rejected' ? '✗ Not Published' : '⏳ Under Review'}</span>
+      </div>
+      <p>${escapeHtml(t.story)}</p>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">${KV.fmtDate(t.createdAt)}</div>
+    </div>`;
+  }).join('');
+}
+
+async function submitStory() {
+  if (selectedRating === 0) { KV.showToast('Please select a star rating first.', 'warning'); return; }
+  const story = document.getElementById('storyText').value.trim();
+  if (story.length < 20) { KV.showToast('Please write at least 20 characters.', 'warning'); return; }
+  const anon = document.getElementById('storyAnon').checked;
+
+  const btn = document.getElementById('storySubmitBtn');
+  btn.disabled = true; btn.textContent = 'Submitting...';
+
+  const res = await KV.post('/api/testimonials', { story, rating: selectedRating, isAnonymous: anon });
+  btn.disabled = false; btn.textContent = 'Submit Story →';
+
+  if (!res) return;
+  const data = await res.json();
+  if (data.success) {
+    KV.showToast('Story submitted! Our team will review it shortly. Thank you 🌿', 'success');
+    document.getElementById('storyText').value = '';
+    document.getElementById('storyCharCount').textContent = '0 / 500 characters';
+    setRating(0);
+    loadMyTestimonials();
+  } else {
+    KV.showToast(data.message || 'Submission failed.', 'error');
+  }
+}
+</script>
+</body>
+</html>

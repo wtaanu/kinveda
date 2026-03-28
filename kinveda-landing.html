@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinVeda – Family Wellness Portal</title>
+<style>
+  :root {
+    --primary: #2D7D6F;
+    --primary-dark: #1E5C51;
+    --primary-light: #4A9D8E;
+    --accent: #E8734A;
+    --accent-light: #F4A07A;
+    --bg: #F7F4EF;
+    --card: #FFFFFF;
+    --text: #1A2E2A;
+    --text-muted: #6B7F7C;
+    --border: #E2EAE8;
+    --sos: #DC2626;
+    --shadow: 0 2px 16px rgba(45,125,111,0.10);
+    --shadow-lg: 0 8px 32px rgba(45,125,111,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* NAV */
+  nav { background: white; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; height: 68px; position: sticky; top: 0; z-index: 100; box-shadow: 0 1px 8px rgba(0,0,0,0.07); }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon { width: 38px; height: 38px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; }
+  .logo-text { font-size: 22px; font-weight: 700; color: var(--primary-dark); letter-spacing: -0.5px; }
+  .logo-text span { color: var(--accent); }
+  .nav-links { display: flex; gap: 8px; align-items: center; }
+  .nav-links a { text-decoration: none; color: var(--text-muted); padding: 8px 16px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: all .2s; }
+  .nav-links a:hover { color: var(--primary); background: #EEF7F5; }
+  .nav-cta { background: var(--primary); color: white !important; border-radius: 8px; padding: 9px 20px !important; }
+  .nav-cta:hover { background: var(--primary-dark) !important; color: white !important; }
+  .sos-pill { background: #FEE2E2; color: var(--sos); font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #FCA5A5; cursor: pointer; letter-spacing: 0.5px; }
+
+  /* HERO */
+  .hero { padding: 80px 40px 60px; max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+  .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: #EEF7F5; color: var(--primary); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 20px; margin-bottom: 20px; border: 1px solid #C8E6E1; }
+  .hero h1 { font-size: 48px; font-weight: 800; line-height: 1.15; color: var(--text); margin-bottom: 20px; letter-spacing: -1px; }
+  .hero h1 span { color: var(--primary); }
+  .hero p { font-size: 17px; color: var(--text-muted); margin-bottom: 32px; line-height: 1.7; }
+  .hero-btns { display: flex; gap: 14px; flex-wrap: wrap; }
+  .btn-primary { background: var(--primary); color: white; border: none; padding: 14px 28px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all .2s; box-shadow: 0 4px 14px rgba(45,125,111,0.3); }
+  .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+  .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); padding: 13px 26px; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all .2s; }
+  .btn-outline:hover { background: #EEF7F5; }
+  .hero-img { background: linear-gradient(135deg, #EEF7F5, #D4EDE8); border-radius: 24px; padding: 40px; display: flex; flex-direction: column; gap: 16px; min-height: 360px; justify-content: center; }
+  .hero-card { background: white; border-radius: 14px; padding: 18px 20px; box-shadow: var(--shadow); display: flex; align-items: center; gap: 14px; }
+  .hero-card-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .hero-card h4 { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 2px; }
+  .hero-card p { font-size: 12px; color: var(--text-muted); }
+  .stat-row { display: flex; gap: 12px; }
+  .stat-box { background: white; border-radius: 12px; padding: 14px 18px; flex: 1; box-shadow: var(--shadow); text-align: center; }
+  .stat-box .num { font-size: 22px; font-weight: 800; color: var(--primary); }
+  .stat-box .lbl { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+
+  /* FEATURES */
+  .section { padding: 60px 40px; max-width: 1200px; margin: 0 auto; }
+  .section-head { text-align: center; margin-bottom: 48px; }
+  .section-head h2 { font-size: 34px; font-weight: 800; color: var(--text); margin-bottom: 12px; }
+  .section-head p { font-size: 16px; color: var(--text-muted); max-width: 520px; margin: 0 auto; }
+  .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .feature-card { background: white; border-radius: 16px; padding: 28px; box-shadow: var(--shadow); border: 1px solid var(--border); transition: all .2s; }
+  .feature-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .feature-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 16px; }
+  .feature-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+  .feature-card p { font-size: 14px; color: var(--text-muted); line-height: 1.6; }
+
+  /* HOW IT WORKS */
+  .how-section { background: white; padding: 60px 40px; }
+  .how-inner { max-width: 1200px; margin: 0 auto; }
+  .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; margin-top: 48px; }
+  .step { text-align: center; }
+  .step-num { width: 52px; height: 52px; background: var(--primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; margin: 0 auto 16px; }
+  .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .step p { font-size: 13px; color: var(--text-muted); }
+
+  /* PORTALS */
+  .portals-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .portal-card { border-radius: 20px; padding: 32px; color: white; cursor: pointer; text-decoration: none; display: block; transition: all .2s; }
+  .portal-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .portal-card.patient { background: linear-gradient(135deg, #2D7D6F, #4A9D8E); }
+  .portal-card.psychologist { background: linear-gradient(135deg, #5A4F8A, #7B6DB0); }
+  .portal-card.admin { background: linear-gradient(135deg, #B45309, #D97706); }
+  .portal-card .p-icon { font-size: 36px; margin-bottom: 16px; }
+  .portal-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .portal-card p { font-size: 13px; opacity: 0.85; margin-bottom: 20px; line-height: 1.6; }
+  .portal-card .p-btn { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); color: white; padding: 9px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; display: inline-block; transition: all .2s; }
+  .portal-card:hover .p-btn { background: rgba(255,255,255,0.3); }
+
+  /* SOS BANNER */
+  .sos-banner { background: linear-gradient(135deg, #FEF2F2, #FEE2E2); border: 1px solid #FCA5A5; border-radius: 16px; padding: 28px 32px; display: flex; align-items: center; gap: 24px; margin: 40px auto; max-width: 1200px; }
+  .sos-icon { font-size: 40px; }
+  .sos-content h3 { font-size: 18px; font-weight: 700; color: var(--sos); margin-bottom: 6px; }
+  .sos-content p { font-size: 14px; color: #7F1D1D; }
+  .sos-numbers { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .sos-number { background: white; border: 1px solid #FCA5A5; border-radius: 8px; padding: 8px 16px; }
+  .sos-number .org { font-size: 11px; font-weight: 600; color: var(--sos); }
+  .sos-number .num { font-size: 16px; font-weight: 800; color: #111; }
+  .quick-exit { margin-left: auto; flex-shrink: 0; background: var(--sos); color: white; border: none; padding: 12px 20px; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .quick-exit:hover { background: #B91C1C; }
+
+  /* FOOTER */
+  footer { background: var(--primary-dark); color: rgba(255,255,255,0.8); padding: 40px; text-align: center; margin-top: 60px; }
+  footer .footer-logo { font-size: 24px; font-weight: 800; color: white; margin-bottom: 8px; }
+  footer p { font-size: 13px; opacity: 0.7; }
+
+  /* TESTIMONIALS */
+  .testimonial-card { background: white; border-radius: 16px; padding: 22px; box-shadow: 0 2px 16px rgba(45,125,111,.08); border: 1px solid var(--border); position: relative; }
+  .test-stars { font-size: 16px; margin-bottom: 10px; }
+  .test-quote { font-size: 13px; color: #3D4B47; line-height: 1.7; margin-bottom: 14px; font-style: italic; }
+  .test-author { display: flex; align-items: center; gap: 10px; }
+  .test-av { width: 36px; height: 36px; background: linear-gradient(135deg, #EEF7F5, #C8E6E1); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+  .test-name { font-size: 13px; font-weight: 700; }
+  .test-tag { font-size: 11px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="kinveda-landing.html" class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Kin<span>Veda</span></div>
+  </a>
+  <div class="nav-links">
+    <a href="#how-it-works">How It Works</a>
+    <a href="#our-kinmentors">Our Experts</a>
+    <a href="#resources">Resources</a>
+    <span class="sos-pill" onclick="document.querySelector('.sos-banner').scrollIntoView({behavior:'smooth'})">🆘 SOS Help</span>
+    <a href="kinveda-intake.html" class="nav-cta">Start Assessment →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div style="background: linear-gradient(180deg, white 0%, var(--bg) 100%);">
+<div class="hero">
+  <div>
+    <div class="hero-badge">🇮🇳 India's Family Wellness Portal</div>
+    <h1>Heal Your Family<br><span>From the Inside Out</span></h1>
+    <p>A safe, confidential space for families navigating generation gaps, substance use, domestic stress, and mental health — designed for India's unique family structures.</p>
+    <div class="hero-btns">
+      <a href="kinveda-intake.html" class="btn-primary">Start Free Assessment →</a>
+      <a href="kinveda-kinmentor-profile.html" class="btn-outline">Meet Our KinMentors</a>
+    </div>
+  </div>
+  <div class="hero-img">
+    <div class="hero-card">
+      <div class="hero-card-icon" style="background:#EEF7F5;">🧠</div>
+      <div>
+        <h4>Smart Assessment Engine</h4>
+        <p>Personalized intake — not a generic form</p>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-icon" style="background:#F3F0FF;">🎥</div>
+      <div>
+        <h4>Live Video Sessions</h4>
+        <p>Secure video calls with verified KinMentors</p>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-icon" style="background:#FFF7ED;">📋</div>
+      <div>
+        <h4>Personal Safety Plan</h4>
+        <p>Downloadable SOS guide for every user</p>
+      </div>
+    </div>
+    <div class="stat-row">
+      <div class="stat-box"><div class="num">200+</div><div class="lbl">Verified Experts</div></div>
+      <div class="stat-box"><div class="num">15K+</div><div class="lbl">Families Helped</div></div>
+      <div class="stat-box"><div class="num">24/7</div><div class="lbl">Crisis Support</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- FEATURES -->
+<div class="section">
+  <div class="section-head">
+    <h2>Built for India's Complex Families</h2>
+    <p>From nuclear families to only-child dynamics — we understand your unique situation</p>
+  </div>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#EEF7F5;">🏠</div>
+      <h3>Family Structure Mapping</h3>
+      <p>Nuclear, joint, single-parent, only-child — our assessment adapts to your family type and surface the real pressure points.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#FFF7ED;">🛡️</div>
+      <h3>SOS Safety Layer</h3>
+      <p>Instant access to crisis resources, a Quick Exit button on every page, and automatic SOS banners when risk is detected.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#F3F0FF;">🎓</div>
+      <h3>Verified KinMentors</h3>
+      <p>RCI-registered KinMentors with verified credentials, transparent session fees, and blog-style profiles so you can choose with confidence.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#FEF2F2;">💬</div>
+      <h3>Secure Encrypted Chat</h3>
+      <p>End-to-end encrypted messaging between you and your counselor — even the admin cannot read your sessions.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#ECFDF5;">📅</div>
+      <h3>Smart Scheduling</h3>
+      <p>Book sessions, receive calendar invites, and manage bi-weekly monthly packages all from your personal dashboard.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon" style="background:#FEF9C3;">📚</div>
+      <h3>Resource Library</h3>
+      <p>Personalized PDF guides — Only Child Survival Guide, Boundary Setting Workbook, Safety Plans — auto-pinned to your dashboard.</p>
+    </div>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<div class="how-section" id="how-it-works">
+  <div class="how-inner">
+    <div class="section-head">
+      <h2>How KinVeda Works</h2>
+      <p>From your first assessment to ongoing care in four simple steps</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <h3>Take the Assessment</h3>
+        <p>A personalized 4-section intake form determines your needs and connects you to the right specialist.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <h3>Get Matched</h3>
+        <p>Admin reviews your request and sends a curated invite to book with a matched KinMentor.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <h3>Pay & Connect</h3>
+        <p>Secure payment unlocks your video session. A calendar invite is sent to both you and your counselor.</p>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <h3>Ongoing Care</h3>
+        <p>After your first session, subscribe to a monthly package with bi-weekly calls. Cancel anytime.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PORTALS (Our KinMentors anchor) -->
+<div class="section" id="our-kinmentors">
+  <div class="section-head">
+    <h2>Choose Your Portal</h2>
+    <p>Dedicated portals for KinMembers seeking support and KinMentors providing care</p>
+  </div>
+  <div class="portals-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 800px; margin: 0 auto;">
+    <a href="kinveda-kinmember.html" class="portal-card patient">
+      <div class="p-icon">👤</div>
+      <h3>KinMember Portal</h3>
+      <p>Track your wellness journey, view booked sessions, download resources, and message your KinMentor — all in one secure space.</p>
+      <span class="p-btn">Enter KinMember Portal →</span>
+    </a>
+    <a href="kinveda-kinmentor.html" class="portal-card psychologist">
+      <div class="p-icon">🧑‍⚕️</div>
+      <h3>KinMentor Portal</h3>
+      <p>Manage your caseload, write encrypted case notes, set session fees, and publish wellness content for your members.</p>
+      <span class="p-btn">Enter KinMentor Portal →</span>
+    </a>
+  </div>
+</div>
+
+<!-- TESTIMONIALS -->
+<div class="section" id="resources" style="background:white;">
+  <div class="section-head">
+    <h2>Stories from Our KinMembers</h2>
+    <p>Real families. Real journeys. Shared with permission.</p>
+  </div>
+  <div id="testimonialCards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:1100px;margin:0 auto;">
+    <div style="text-align:center;padding:30px;color:#78716C;grid-column:1/-1;">Loading stories...</div>
+  </div>
+</div>
+
+<!-- SOS BANNER -->
+<div class="sos-banner" style="margin: 0 40px 40px; max-width: calc(1200px); margin-left: auto; margin-right: auto;">
+  <div class="sos-icon">🆘</div>
+  <div class="sos-content">
+    <h3>Are you in immediate danger? Help is available right now.</h3>
+    <p>If you or someone you know is in crisis, please reach out to one of India's free helplines:</p>
+    <div class="sos-numbers">
+      <div class="sos-number">
+        <div class="org">Vandrevala Foundation</div>
+        <div class="num">9999 666 555</div>
+      </div>
+      <div class="sos-number">
+        <div class="org">Kiran (Govt. Mental Health)</div>
+        <div class="num">1800-599-0019</div>
+      </div>
+      <div class="sos-number">
+        <div class="org">NCW (Domestic Violence)</div>
+        <div class="num">7827 170 170</div>
+      </div>
+      <div class="sos-number">
+        <div class="org">Police Emergency</div>
+        <div class="num">112</div>
+      </div>
+    </div>
+  </div>
+  <button class="quick-exit" onclick="KV.quickExit()">⚡ Quick Exit</button>
+</div>
+
+<footer>
+  <div class="footer-logo">🌿 KinVeda</div>
+  <p>India's Family Wellness Portal · Confidential · Encrypted · RCI-Verified Professionals</p>
+  <p style="margin-top:8px;">© 2026 KinVeda. All sessions are private. Your safety is our first priority.</p>
+</footer>
+
+<script src="kinveda-api.js"></script>
+<script>
+// Load public testimonials from API
+async function loadTestimonials() {
+  const el = document.getElementById('testimonialCards');
+  if (!el) return;
+  try {
+    const res = await fetch(`${KV.API_BASE}/api/testimonials/public`);
+    const data = await res.json();
+    if (!data.success || !data.testimonials?.length) {
+      el.innerHTML = `
+        <div style="grid-column:1/-1;text-align:center;padding:30px;color:#78716C;">
+          <p style="font-size:15px;">Stories will appear here as our community grows. 🌿</p>
+        </div>`;
+      return;
+    }
+    const avatars = ['🌟','💫','✨','🌺','🌸','🌻','🌼','💐'];
+    el.innerHTML = data.testimonials.map((t, i) => `
+      <div class="testimonial-card">
+        <div class="test-stars">${'⭐'.repeat(t.rating)}</div>
+        <div class="test-quote">"${escapeHtml(t.story)}"</div>
+        <div class="test-author">
+          <div class="test-av">${avatars[i % avatars.length]}</div>
+          <div>
+            <div class="test-name">${t.authorDisplay || 'KinVeda Member'}</div>
+            <div class="test-tag">${t.concernTag || 'Family Wellness'}</div>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch (err) {
+    el.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#78716C;">Stories will appear here soon.</div>';
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+document.addEventListener('DOMContentLoaded', loadTestimonials);
+</script>
+</body>
+</html>

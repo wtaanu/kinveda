@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinVeda – Sign In</title>
+<style>
+  :root {
+    --primary: #2D7D6F; --primary-dark: #1E5C51; --primary-light: #4A9D8E;
+    --accent: #E8734A; --bg: #F7F4EF; --card: #FFFFFF;
+    --text: #1A2E2A; --text-muted: #6B7F7C; --border: #E2EAE8;
+    --sos: #DC2626; --shadow: 0 2px 16px rgba(45,125,111,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
+  nav { background: white; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  .logo-text { font-size: 20px; font-weight: 700; color: var(--primary-dark); }
+  .logo-text span { color: var(--accent); }
+  .quick-exit { background: #FEE2E2; color: var(--sos); border: 1px solid #FCA5A5; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+  .page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; max-width: 900px; width: 100%; background: white; border-radius: 24px; overflow: hidden; box-shadow: 0 8px 40px rgba(45,125,111,0.14); }
+  .left-panel { background: linear-gradient(135deg, var(--primary-dark), var(--primary-light)); padding: 48px 40px; color: white; display: flex; flex-direction: column; justify-content: center; }
+  .left-panel .brand { font-size: 28px; font-weight: 800; margin-bottom: 8px; }
+  .left-panel .tagline { font-size: 15px; opacity: .85; margin-bottom: 40px; line-height: 1.6; }
+  .left-panel .feature { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .left-panel .feature .icon { font-size: 22px; }
+  .left-panel .feature h4 { font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+  .left-panel .feature p { font-size: 13px; opacity: .8; }
+  .right-panel { padding: 48px 40px; }
+  .right-panel h2 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+  .right-panel p.sub { font-size: 14px; color: var(--text-muted); margin-bottom: 32px; }
+
+  .form-group { margin-bottom: 20px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; color: var(--text); }
+  .form-group input { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; color: var(--text); font-family: inherit; transition: border .2s; background: white; }
+  .form-group input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,125,111,0.1); }
+  .form-group .input-wrap { position: relative; }
+  .form-group .toggle-pass { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; color: var(--text-muted); font-size: 16px; background: none; border: none; }
+
+  .forgot-link { text-align: right; margin-top: -12px; margin-bottom: 20px; }
+  .forgot-link a { font-size: 13px; color: var(--primary); text-decoration: none; font-weight: 500; }
+
+  .btn-signin { width: 100%; background: var(--primary); color: white; border: none; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(45,125,111,0.25); }
+  .btn-signin:hover { background: var(--primary-dark); transform: translateY(-1px); }
+  .btn-signin:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+
+  .divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; color: var(--text-muted); font-size: 13px; }
+  .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .role-tabs { display: flex; gap: 8px; margin-bottom: 28px; }
+  .role-tab { flex: 1; padding: 10px; border: 2px solid var(--border); border-radius: 10px; text-align: center; cursor: pointer; transition: all .2s; background: white; }
+  .role-tab:hover { border-color: var(--primary-light); background: #EEF7F5; }
+  .role-tab.active { border-color: var(--primary); background: #EEF7F5; }
+  .role-tab .rt-icon { font-size: 22px; margin-bottom: 4px; }
+  .role-tab .rt-label { font-size: 13px; font-weight: 700; color: var(--text); }
+  .role-tab .rt-sub { font-size: 11px; color: var(--text-muted); }
+
+  .signup-link { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted); }
+  .signup-link a { color: var(--primary); font-weight: 700; text-decoration: none; }
+
+  .error-msg { background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--sos); margin-bottom: 16px; display: none; }
+  .error-msg.show { display: block; }
+
+  .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-signin.loading .btn-text { display: none; }
+  .btn-signin.loading .spinner { display: block; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="kinveda-landing.html" class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Kin<span>Veda</span></div>
+  </a>
+  <button class="quick-exit" onclick="KV.quickExit()">⚡ Quick Exit</button>
+</nav>
+
+<div class="page">
+  <div class="split">
+    <div class="left-panel">
+      <div class="brand">🌿 KinVeda</div>
+      <div class="tagline">India's secure family wellness portal. Your data is encrypted. Your sessions are private.</div>
+      <div class="feature">
+        <div class="icon">🔒</div>
+        <div><h4>End-to-End Encrypted</h4><p>All messages and notes are AES-256 encrypted — not even the admin can read them.</p></div>
+      </div>
+      <div class="feature">
+        <div class="icon">🧑‍⚕️</div>
+        <div><h4>RCI-Verified KinMentors</h4><p>Every professional is credential-verified before going live.</p></div>
+      </div>
+      <div class="feature">
+        <div class="icon">🆘</div>
+        <div><h4>24/7 SOS Layer</h4><p>Crisis resources and Quick Exit on every page.</p></div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to your KinVeda account</p>
+
+      <div class="role-tabs">
+        <div class="role-tab active" id="tab-member" onclick="setRole('kinmember')">
+          <div class="rt-icon">👤</div>
+          <div class="rt-label">KinMember</div>
+          <div class="rt-sub">I'm seeking support</div>
+        </div>
+        <div class="role-tab" id="tab-mentor" onclick="setRole('kinmentor')">
+          <div class="rt-icon">🧑‍⚕️</div>
+          <div class="rt-label">KinMentor</div>
+          <div class="rt-sub">I'm a professional</div>
+        </div>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <form id="signinForm" onsubmit="handleSignin(event)">
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input type="email" id="email" required autocomplete="email" placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="password" required autocomplete="current-password" placeholder="Enter your password">
+            <button type="button" class="toggle-pass" onclick="togglePass()">👁</button>
+          </div>
+        </div>
+        <div class="forgot-link"><a href="kinveda-forgot.html">Forgot password?</a></div>
+        <button type="submit" class="btn-signin" id="signinBtn">
+          <span class="btn-text">Sign In →</span>
+          <div class="spinner"></div>
+        </button>
+      </form>
+
+      <div class="divider">or</div>
+      <div class="signup-link">
+        Don't have an account? <a href="kinveda-signup.html">Create one free →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:3001';
+  let selectedRole = 'kinmember';
+
+  function setRole(role) {
+    selectedRole = role;
+    document.getElementById('tab-member').classList.toggle('active', role === 'kinmember');
+    document.getElementById('tab-mentor').classList.toggle('active', role === 'kinmentor');
+  }
+
+  function togglePass() {
+    const inp = document.getElementById('password');
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  async function handleSignin(e) {
+    e.preventDefault();
+    const btn = document.getElementById('signinBtn');
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    document.getElementById('errorMsg').classList.remove('show');
+    btn.classList.add('loading');
+    btn.disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/signin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!data.success) {
+        showError(data.message || 'Sign in failed. Please check your credentials.');
+        return;
+      }
+
+      // Verify role matches selected tab
+      if (data.user.role !== selectedRole && data.user.role !== 'admin') {
+        showError(`This account is not a ${selectedRole === 'kinmember' ? 'KinMember' : 'KinMentor'}. Please select the correct role.`);
+        return;
+      }
+
+      // Store access token
+      localStorage.setItem('kv_token', data.accessToken);
+      localStorage.setItem('kv_user', JSON.stringify(data.user));
+
+      // Redirect based on role
+      window.location.href = data.redirectTo || (data.user.role === 'kinmentor' ? 'kinveda-kinmentor.html' : 'kinveda-kinmember.html');
+    } catch (err) {
+      showError('Connection error. Is the server running?');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // Auto-redirect if already signed in
+  const existingToken = localStorage.getItem('kv_token');
+  const existingUser  = localStorage.getItem('kv_user');
+  if (existingToken && existingUser) {
+    try {
+      const u = JSON.parse(existingUser);
+      if (u.role === 'kinmentor') window.location.href = 'kinveda-kinmentor.html';
+      else if (u.role === 'kinmember') window.location.href = 'kinveda-kinmember.html';
+    } catch {}
+  }
+</script>
+</body>
+</html>

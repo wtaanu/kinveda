@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinVeda – Create Account</title>
+<style>
+  :root {
+    --primary: #2D7D6F; --primary-dark: #1E5C51; --primary-light: #4A9D8E;
+    --accent: #E8734A; --bg: #F7F4EF; --card: #FFFFFF;
+    --text: #1A2E2A; --text-muted: #6B7F7C; --border: #E2EAE8;
+    --sos: #DC2626; --shadow: 0 2px 16px rgba(45,125,111,0.10);
+    --mentor: #5A4F8A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
+  nav { background: white; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  .logo-text { font-size: 20px; font-weight: 700; color: var(--primary-dark); }
+  .logo-text span { color: var(--accent); }
+
+  .page { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+  .container { max-width: 800px; width: 100%; }
+
+  /* ROLE SELECTION CARD */
+  .role-select-card { background: white; border-radius: 24px; padding: 48px; box-shadow: 0 8px 40px rgba(45,125,111,0.14); }
+  .role-select-card h2 { font-size: 26px; font-weight: 800; text-align: center; margin-bottom: 8px; }
+  .role-select-card p { font-size: 15px; color: var(--text-muted); text-align: center; margin-bottom: 36px; }
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  .role-card { border: 2.5px solid var(--border); border-radius: 16px; padding: 28px 24px; cursor: pointer; transition: all .2s; text-align: center; }
+  .role-card:hover { border-color: var(--primary-light); box-shadow: 0 4px 20px rgba(45,125,111,0.12); transform: translateY(-2px); }
+  .role-card.member.selected { border-color: var(--primary); background: linear-gradient(135deg, #EEF7F5, #F8FDFC); }
+  .role-card.mentor.selected { border-color: var(--mentor); background: linear-gradient(135deg, #F3F0FF, #FAF9FF); }
+  .role-card .rc-icon { font-size: 44px; margin-bottom: 14px; }
+  .role-card h3 { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+  .role-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .role-card .rc-badge { display: inline-block; margin-top: 12px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .role-card.member .rc-badge { background: #EEF7F5; color: var(--primary); }
+  .role-card.mentor .rc-badge { background: #F3F0FF; color: var(--mentor); }
+
+  /* FORM */
+  .form-card { background: white; border-radius: 24px; padding: 48px; box-shadow: 0 8px 40px rgba(45,125,111,0.14); display: none; }
+  .form-card.show { display: block; }
+  .form-card .form-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+  .form-card .form-header .role-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+  .form-card .form-header .role-chip.member { background: #EEF7F5; color: var(--primary); }
+  .form-card .form-header .role-chip.mentor { background: #F3F0FF; color: var(--mentor); }
+  .form-card h2 { font-size: 24px; font-weight: 800; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .form-group { margin-bottom: 4px; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 7px; }
+  .form-group input, .form-group select { width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; font-family: inherit; color: var(--text); transition: border .2s; }
+  .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,125,111,0.1); }
+  .form-group .pw-wrap { position: relative; }
+  .form-group .toggle-pass { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; background: none; border: none; color: var(--text-muted); }
+  .pw-strength { height: 4px; border-radius: 2px; margin-top: 6px; transition: all .3s; }
+  .pw-hint { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+  /* MENTOR EXTRAS */
+  .mentor-section { background: #F3F0FF; border-radius: 12px; padding: 18px; margin-top: 16px; }
+  .mentor-section h4 { font-size: 14px; font-weight: 700; color: var(--mentor); margin-bottom: 12px; }
+
+  .consent-wrap { background: #F8F5EF; border-radius: 10px; padding: 14px 16px; font-size: 12px; color: var(--text-muted); line-height: 1.7; max-height: 100px; overflow-y: auto; margin-bottom: 12px; }
+  .consent-check { display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 20px; }
+  .consent-check input { width: 18px; height: 18px; accent-color: var(--primary); }
+  .consent-check span { font-size: 13px; font-weight: 500; }
+
+  .btn-submit { width: 100%; padding: 13px; border-radius: 10px; font-size: 15px; font-weight: 700; border: none; color: white; cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(45,125,111,0.25); }
+  .btn-submit.member { background: var(--primary); }
+  .btn-submit.member:hover { background: var(--primary-dark); }
+  .btn-submit.mentor { background: var(--mentor); }
+  .btn-submit.mentor:hover { background: #3E3568; }
+  .btn-submit:disabled { opacity: .6; cursor: not-allowed; }
+
+  .back-link { color: var(--text-muted); font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 20px; background: none; border: none; }
+  .back-link:hover { color: var(--primary); }
+
+  .signin-link { text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-muted); }
+  .signin-link a { color: var(--primary); font-weight: 700; text-decoration: none; }
+
+  .error-msg { background: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--sos); margin-bottom: 16px; display: none; }
+  .error-msg.show { display: block; }
+
+  .success-card { text-align: center; padding: 48px; display: none; }
+  .success-card.show { display: block; }
+  .success-card .check { width: 68px; height: 68px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 28px; }
+  .success-card h2 { font-size: 26px; font-weight: 800; margin-bottom: 10px; }
+  .success-card p { font-size: 15px; color: var(--text-muted); margin-bottom: 28px; }
+  .btn-goto { background: var(--primary); color: white; border: none; padding: 13px 28px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+
+  .spinner { display: none; width: 18px; height: 18px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin .7s linear infinite; margin: 0 auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn-submit.loading .btn-text { display: none; }
+  .btn-submit.loading .spinner { display: block; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="kinveda-landing.html" class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Kin<span>Veda</span></div>
+  </a>
+</nav>
+
+<div class="page">
+<div class="container">
+
+  <!-- STEP 1: ROLE SELECTION -->
+  <div class="role-select-card" id="roleSelect">
+    <h2>Join KinVeda</h2>
+    <p>Choose how you'd like to use KinVeda</p>
+    <div class="role-grid">
+      <div class="role-card member" id="cardMember" onclick="selectRole('kinmember')">
+        <div class="rc-icon">👤</div>
+        <h3>KinMember</h3>
+        <p>I'm looking for support for myself or my family. I want to connect with a verified KinMentor.</p>
+        <span class="rc-badge">Free to join</span>
+      </div>
+      <div class="role-card mentor" id="cardMentor" onclick="selectRole('kinmentor')">
+        <div class="rc-icon">🧑‍⚕️</div>
+        <h3>KinMentor</h3>
+        <p>I'm a verified mental health professional. I want to list my practice and connect with members.</p>
+        <span class="rc-badge">RCI verification required</span>
+      </div>
+    </div>
+    <div class="signin-link">Already have an account? <a href="kinveda-signin.html">Sign in →</a></div>
+  </div>
+
+  <!-- STEP 2: SIGNUP FORM -->
+  <div class="form-card" id="formCard">
+    <button class="back-link" onclick="goBack()">← Choose different role</button>
+    <div class="form-header">
+      <span class="role-chip" id="roleChip">👤 KinMember</span>
+      <h2 id="formTitle">Create Your KinMember Account</h2>
+    </div>
+
+    <div class="error-msg" id="errorMsg"></div>
+
+    <form id="signupForm" onsubmit="handleSignup(event)">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="name" required placeholder="Your full name" minlength="2">
+        </div>
+        <div class="form-group">
+          <label>Email Address *</label>
+          <input type="email" id="email" required placeholder="your@email.com">
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" id="phone" placeholder="+91 98765 43210">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input type="text" id="city" placeholder="Mumbai, Delhi...">
+        </div>
+        <div class="form-group">
+          <label>Password *</label>
+          <div class="pw-wrap">
+            <input type="password" id="password" required minlength="8" placeholder="Min 8 characters" oninput="checkStrength(this.value)">
+            <button type="button" class="toggle-pass" onclick="togglePass('password')">👁</button>
+          </div>
+          <div class="pw-strength" id="pwStrength"></div>
+          <div class="pw-hint" id="pwHint">Use 8+ characters with letters, numbers & symbols</div>
+        </div>
+        <div class="form-group">
+          <label>Confirm Password *</label>
+          <div class="pw-wrap">
+            <input type="password" id="confirmPassword" required placeholder="Repeat password">
+            <button type="button" class="toggle-pass" onclick="togglePass('confirmPassword')">👁</button>
+          </div>
+        </div>
+
+        <!-- KINMENTOR EXTRA FIELDS -->
+        <div class="full mentor-only" id="mentorExtras" style="display:none;">
+          <div class="mentor-section">
+            <h4>🎓 Professional Details (required for KinMentors)</h4>
+            <div class="form-grid" style="margin-top:0;">
+              <div class="form-group">
+                <label>RCI License Number *</label>
+                <input type="text" id="rciLicense" placeholder="e.g. A-23814">
+              </div>
+              <div class="form-group">
+                <label>Years of Experience *</label>
+                <input type="number" id="expYears" placeholder="e.g. 9" min="0" max="60">
+              </div>
+              <div class="form-group full">
+                <label>Highest Qualification *</label>
+                <input type="text" id="qualification" placeholder="e.g. M.Phil Clinical Psychology, NIMHANS">
+              </div>
+              <div class="form-group full">
+                <label>Primary Specializations</label>
+                <input type="text" id="specializations" placeholder="e.g. Nuclear Family, Only Child, Anxiety (comma separated)">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="consent-wrap">
+        By creating an account, I consent to KinVeda collecting and securely storing my information for the purpose of mental wellness support. My data is encrypted using AES-256 and will never be shared with third parties without my explicit consent. I understand I may withdraw my consent at any time. This platform does not replace emergency services.
+      </div>
+      <label class="consent-check">
+        <input type="checkbox" id="consentCheck" required>
+        <span>I agree to the Consent to Treatment and Privacy Policy</span>
+      </label>
+
+      <button type="submit" class="btn-submit" id="submitBtn">
+        <span class="btn-text">Create Account →</span>
+        <div class="spinner"></div>
+      </button>
+    </form>
+
+    <div class="signin-link">Already have an account? <a href="kinveda-signin.html">Sign in →</a></div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="form-card success-card" id="successCard">
+    <div class="check">✓</div>
+    <h2>Account Created!</h2>
+    <p id="successMsg">Welcome to KinVeda. A welcome email has been sent to you.</p>
+    <a href="kinveda-signin.html" class="btn-goto" id="dashboardBtn">Go to Sign In →</a>
+  </div>
+
+</div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:3001';
+  let selectedRole = null;
+
+  function selectRole(role) {
+    selectedRole = role;
+    document.getElementById('roleSelect').style.display = 'none';
+    const fc = document.getElementById('formCard');
+    fc.classList.add('show');
+    const isMentor = role === 'kinmentor';
+    const chip = document.getElementById('roleChip');
+    chip.textContent = isMentor ? '🧑‍⚕️ KinMentor' : '👤 KinMember';
+    chip.className = 'role-chip ' + (isMentor ? 'mentor' : 'member');
+    document.getElementById('formTitle').textContent = `Create Your ${isMentor ? 'KinMentor' : 'KinMember'} Account`;
+    document.getElementById('mentorExtras').style.display = isMentor ? 'block' : 'none';
+    const btn = document.getElementById('submitBtn');
+    btn.className = `btn-submit ${isMentor ? 'mentor' : 'member'}`;
+  }
+
+  function goBack() {
+    document.getElementById('formCard').classList.remove('show');
+    document.getElementById('roleSelect').style.display = 'block';
+    selectedRole = null;
+  }
+
+  function togglePass(id) {
+    const inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+
+  function checkStrength(pw) {
+    const bar = document.getElementById('pwStrength');
+    const hint = document.getElementById('pwHint');
+    let score = 0;
+    if (pw.length >= 8)  score++;
+    if (/[A-Z]/.test(pw)) score++;
+    if (/[0-9]/.test(pw)) score++;
+    if (/[^A-Za-z0-9]/.test(pw)) score++;
+    const colors = ['#EF4444','#F97316','#EAB308','#22C55E'];
+    const labels = ['Weak','Fair','Good','Strong'];
+    bar.style.background = colors[score - 1] || '#E2EAE8';
+    bar.style.width = (score * 25) + '%';
+    hint.textContent = score > 0 ? `Password strength: ${labels[score - 1]}` : 'Use 8+ characters with letters, numbers & symbols';
+    hint.style.color = colors[score - 1] || '#6B7F7C';
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.classList.add('show');
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  async function handleSignup(e) {
+    e.preventDefault();
+    const password = document.getElementById('password').value;
+    const confirm  = document.getElementById('confirmPassword').value;
+    if (password !== confirm) { showError('Passwords do not match.'); return; }
+
+    const btn = document.getElementById('submitBtn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    document.getElementById('errorMsg').classList.remove('show');
+
+    const body = {
+      name:     document.getElementById('name').value.trim(),
+      email:    document.getElementById('email').value.trim(),
+      password,
+      role:     selectedRole,
+      phone:    document.getElementById('phone').value.trim() || undefined,
+      city:     document.getElementById('city').value.trim() || undefined
+    };
+
+    if (selectedRole === 'kinmentor') {
+      body.rciLicense      = document.getElementById('rciLicense').value.trim();
+      body.experienceYears = document.getElementById('expYears').value;
+      body.qualification   = document.getElementById('qualification').value.trim();
+      body.specializations = document.getElementById('specializations').value.split(',').map(s => s.trim()).filter(Boolean);
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body)
+      });
+      const data = await res.json();
+      if (!data.success) {
+        const msg = data.errors ? data.errors.map(e => e.msg).join(', ') : (data.message || 'Signup failed.');
+        showError(msg);
+        return;
+      }
+
+      localStorage.setItem('kv_token', data.accessToken);
+      localStorage.setItem('kv_user', JSON.stringify(data.user));
+
+      document.getElementById('formCard').classList.remove('show');
+      const sc = document.getElementById('successCard');
+      sc.classList.add('show');
+      document.getElementById('successMsg').textContent = `Welcome, ${data.user.name}! Your account is ready.${selectedRole === 'kinmentor' ? ' An admin will verify your RCI credentials before your profile goes live.' : ''}`;
+    } catch (err) {
+      showError('Connection error. Please ensure the server is running.');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
