@@ -22,7 +22,7 @@ const morgan      = require('morgan');
 const rateLimit   = require('express-rate-limit');
 const path        = require('path');
 
-const { initializeSchema } = require('./config/database');
+const { initializeSchema, getDb } = require('./config/database');
 const authRoutes         = require('./routes/auth.routes');
 const kinmemberRoutes    = require('./routes/kinmember.routes');
 const kinmentorRoutes    = require('./routes/kinmentor.routes');
@@ -38,6 +38,31 @@ const ADMIN_PREFIX = process.env.ADMIN_ROUTE_PREFIX || '/mgmt-alpha-secure';
 
 // Initialize DB schema on start
 initializeSchema();
+
+// ─── Auto-seed Admin (first boot) ─────────────────────────────────────────────
+// Runs silently on every startup; only inserts if admin doesn't yet exist.
+// Eliminates the need to manually run `npm run init-db` on production hosts.
+(async () => {
+  try {
+    const bcrypt = require('bcryptjs');
+    const { encrypt } = require('./middleware/encrypt');
+    const db = getDb();
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (!adminEmail) return; // Skip if env not configured yet
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(adminEmail);
+    if (!existing) {
+      const adminPassword = process.env.ADMIN_PASSWORD || 'KinVeda@Admin2026!';
+      const passwordHash = await bcrypt.hash(adminPassword, 12);
+      const nameEnc = encrypt('KinVeda Admin');
+      db.prepare(
+        'INSERT INTO users (email, password_hash, role, name_enc, is_verified, created_at, updated_at) VALUES (?, ?, \'admin\', ?, 1, unixepoch(), unixepoch())'
+      ).run(adminEmail, passwordHash, nameEnc);
+      console.log(`[boot] Admin user created: ${adminEmail}`);
+    }
+  } catch (e) {
+    console.error('[boot] Admin seed skipped:', e.message);
+  }
+})();
 
 // ─── Security ─────────────────────────────────────────────────────────────────
 app.use(helmet({
