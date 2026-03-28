@@ -4,7 +4,7 @@
  * All PII fields AES-256-CBC encrypted at app layer.
  */
 require('dotenv').config();
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
