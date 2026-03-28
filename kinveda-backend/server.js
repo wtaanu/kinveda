@@ -161,10 +161,5 @@ app.use((err, req, res, next) => {
 
 // ─── Start ────────────────────────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`
-╔══════════════════════════════════════════════╗
-║  🌿 KinVeda API Server                       ║
-║  Port    : ${PORT}                              ║
-║  Mode    : ${(process.env.NODE_ENV || 'development').padEnd(12)}                  ║
-║  Admin   : ${ADMIN_PREFIX.padEnd(32)} ║
-╚═══════════
+  console.log(`[KinVeda] Server running on port ${PORT} | mode: ${process.env.NODE_ENV || 'development'} | admin: ${ADMIN_PREFIX}`);
+});
