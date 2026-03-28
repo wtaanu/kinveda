@@ -10,7 +10,6 @@ require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 
 const path = require('path');
 const bcrypt = require('bcryptjs');
-const { v4: uuidv4 } = require('uuid');
 const { initializeSchema, getDb } = require('./database');
 const { encrypt } = require('../middleware/encrypt');
 
@@ -43,13 +42,14 @@ async function main() {
     console.log(`\n👤  Admin user already exists: ${adminEmail}`);
   } else {
     const passwordHash = await bcrypt.hash(adminPassword, 12);
-    const adminId = uuidv4();
     const nameEnc = encrypt('KinVeda Admin');
 
+    // Do NOT pass id — schema is INTEGER PRIMARY KEY AUTOINCREMENT (SQLite rowid alias).
+    // Inserting a UUID string causes "datatype mismatch". Let SQLite assign the id.
     db.prepare(`
-      INSERT INTO users (id, email, password_hash, role, name_enc, is_verified, created_at, updated_at)
-      VALUES (?, ?, ?, 'admin', ?, 1, unixepoch(), unixepoch())
-    `).run(adminId, adminEmail, passwordHash, nameEnc);
+      INSERT INTO users (email, password_hash, role, name_enc, is_verified, created_at, updated_at)
+      VALUES (?, ?, 'admin', ?, 1, unixepoch(), unixepoch())
+    `).run(adminEmail, passwordHash, nameEnc);
 
     console.log(`\n👤  Admin user created:`);
     console.log(`    Email:    ${adminEmail}`);
@@ -71,10 +71,10 @@ async function main() {
     ];
 
     const insertResource = db.prepare(`
-      INSERT INTO resources (id, title, description, category, file_url, created_at)
-      VALUES (?, ?, ?, ?, ?, unixepoch())
+      INSERT INTO resources (title, description, category, file_url, created_at)
+      VALUES (?, ?, ?, ?, unixepoch())
     `);
-    resources.forEach(r => insertResource.run(uuidv4(), r.title, r.description, r.category, r.file_url));
+    resources.forEach(r => insertResource.run(r.title, r.description, r.category, r.file_url));
     console.log(`    ✓ ${resources.length} resources seeded`);
   }
 
@@ -91,7 +91,4 @@ async function main() {
   console.log('\n✅  Setup complete. Run `npm start` to launch the server.\n');
 }
 
-main().catch(err => {
-  console.error('\n❌  Setup failed:', err.message);
-  process.exit(1);
-});
+main()

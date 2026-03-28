@@ -1,9 +1,11 @@
 /**
  * KinVeda Database Configuration
- * SQLite via better-sqlite3. All PII fields AES-256-CBC encrypted at app layer.
+ * SQLite via Node.js built-in node:sqlite (stable in Node 22.15+).
+ * No native compilation required — works on Hostinger Node 22.x hosting.
+ * All PII fields AES-256-CBC encrypted at app layer.
  */
 require('dotenv').config();
-const Database = require('better-sqlite3');
+const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
@@ -15,12 +17,11 @@ function getDb() {
   if (!db) {
     const dir = path.dirname(path.resolve(DB_PATH));
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    db = new Database(path.resolve(DB_PATH), {
-      verbose: process.env.NODE_ENV === 'development' ? null : null
-    });
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    db.pragma('busy_timeout = 5000');
+    db = new DatabaseSync(path.resolve(DB_PATH));
+    // Pragmas via exec (node:sqlite does not have a .pragma() shorthand)
+    db.exec('PRAGMA journal_mode = WAL');
+    db.exec('PRAGMA foreign_keys = ON');
+    db.exec('PRAGMA busy_timeout = 5000');
   }
   return db;
 }
@@ -408,13 +409,4 @@ function initializeSchema() {
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user    ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_availability_mentor   ON mentor_availability(mentor_id, day_of_week);
     CREATE INDEX IF NOT EXISTS idx_testimonials_public   ON testimonials(is_public, is_approved, rating);
-    CREATE INDEX IF NOT EXISTS idx_blog_mentor           ON blog_posts(mentor_id);
-    CREATE INDEX IF NOT EXISTS idx_sos_status            ON sos_events(status);
-    CREATE INDEX IF NOT EXISTS idx_payouts_mentor        ON payouts(mentor_id);
-    CREATE INDEX IF NOT EXISTS idx_video_session         ON video_sessions(session_id);
-  `);
-
-  console.log('[DB] Schema initialized.');
-}
-
-module.exports = { getDb, initializeSchema };
+    CREATE INDEX IF 

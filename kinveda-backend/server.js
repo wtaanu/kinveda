@@ -60,7 +60,9 @@ const allowedOrigins = [
   process.env.FRONTEND_URL || 'http://localhost:3000',
   'http://localhost:3001',
   'http://127.0.0.1:5500',      // VS Code Live Server
-  'http://localhost:5500'
+  'http://localhost:5500',
+  // Additional origins from env (comma-separated) — set CORS_ORIGINS in production .env
+  ...(process.env.CORS_ORIGINS ? process.env.CORS_ORIGINS.split(',').map(o => o.trim()) : [])
 ];
 
 app.use(cors({
@@ -140,8 +142,4 @@ app.listen(PORT, () => {
 ║  Port    : ${PORT}                              ║
 ║  Mode    : ${(process.env.NODE_ENV || 'development').padEnd(12)}                  ║
 ║  Admin   : ${ADMIN_PREFIX.padEnd(32)} ║
-╚══════════════════════════════════════════════╝
-  `);
-});
-
-module.exports = app;
+╚═══════════

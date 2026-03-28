@@ -155,7 +155,8 @@
 
 <script src="kinveda-api.js"></script>
 <script>
-  const API_BASE = 'http://localhost:3001';
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3001' : window.location.origin;
 
   // Check URL for reset token
   const urlParams = new URLSearchParams(window.location.search);
@@ -264,15 +265,4 @@
         document.getElementById('resetView').classList.remove('show');
         document.getElementById('successState').classList.add('show');
       } else {
-        showError('resetError', data.message || 'Reset failed. The link may have expired. Please request a new one.');
-      }
-    } catch (err) {
-      showError('resetError', 'Connection error. Is the server running?');
-    } finally {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-    }
-  }
-</script>
-</body>
-</html>
+        showError('resetError', data.message || 'Reset failed. The link may

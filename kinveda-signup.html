@@ -228,7 +228,8 @@
 </div>
 
 <script>
-  const API_BASE = 'http://localhost:3001';
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3001' : window.location.origin;
   let selectedRole = null;
 
   function selectRole(role) {
@@ -327,14 +328,4 @@
       document.getElementById('formCard').classList.remove('show');
       const sc = document.getElementById('successCard');
       sc.classList.add('show');
-      document.getElementById('successMsg').textContent = `Welcome, ${data.user.name}! Your account is ready.${selectedRole === 'kinmentor' ? ' An admin will verify your RCI credentials before your profile goes live.' : ''}`;
-    } catch (err) {
-      showError('Connection error. Please ensure the server is running.');
-    } finally {
-      btn.classList.remove('loading');
-      btn.disabled = false;
-    }
-  }
-</script>
-</body>
-</html>
+      document.getElementById('successMsg').textContent = `Welcome, ${data.user.name}! Your account is ready.${

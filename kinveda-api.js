@@ -11,7 +11,11 @@
  */
 
 const KV = (() => {
-  const API_BASE = 'http://localhost:3001';
+  // In production (Hostinger), the API and frontend are served by the same Express
+  // server, so API calls go to the same origin. In local dev, point to localhost:3001.
+  const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:3001'
+    : window.location.origin;
   const RAZORPAY_KEY = 'rzp_live_SWMqW8tn9NHHwB';
   const JITSI_DOMAIN = 'meet.jit.si';
 
@@ -390,16 +394,4 @@ const KV = (() => {
 
   // ─── Auto-init ────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-    injectFavicon();
-    injectChatWidget();
-  });
-
-  return {
-    API_BASE, RAZORPAY_KEY, JITSI_DOMAIN,
-    get, post, put, patch, del, apiFetch,
-    getToken, getUser, clearAuth, signOut, requireAuth,
-    openRazorpayCheckout, payForSession, subscribe,
-    joinVideoCall, showToast, fmtDate, fmtDateTime, fmtINR,
-    injectFavicon, injectChatWidget, toggleChat, sendChat, quickExit
-  };
-})();
+   
