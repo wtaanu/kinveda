@@ -1,0 +1,14 @@
+{
+  "name": "kinveda",
+  "version": "1.0.0",
+  "description": "KinVeda Family Wellness Portal",
+  "private": true,
+  "scripts": {
+    "install:backend": "cd kinveda-backend && npm install",
+    "init-db": "cd kinveda-backend && npm run init-db",
+    "start": "cd kinveda-backend && npm start",
+    "dev": "cd kinveda-backend && npm run dev",
+    "setup": "npm run install:backend && npm run init-db",
+    "postinstall": "cd kinveda-backend && npm install"
+  }
+}
