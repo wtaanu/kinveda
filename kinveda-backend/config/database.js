@@ -1,11 +1,10 @@
 /**
  * KinVeda Database Configuration
- * SQLite via Node.js built-in node:sqlite (stable in Node 22.15+).
- * No native compilation required — works on Hostinger Node 22.x hosting.
+ * SQLite via better-sqlite3 — works on Node 18/20/22, Hostinger compatible.
  * All PII fields AES-256-CBC encrypted at app layer.
  */
 require('dotenv').config();
-const { DatabaseSync } = require('node:sqlite');
+const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
@@ -17,11 +16,10 @@ function getDb() {
   if (!db) {
     const dir = path.dirname(path.resolve(DB_PATH));
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    db = new DatabaseSync(path.resolve(DB_PATH));
-    // Pragmas via exec (node:sqlite does not have a .pragma() shorthand)
-    db.exec('PRAGMA journal_mode = WAL');
-    db.exec('PRAGMA foreign_keys = ON');
-    db.exec('PRAGMA busy_timeout = 5000');
+    db = new Database(path.resolve(DB_PATH));
+    db.pragma('journal_mode = WAL');
+    db.pragma('foreign_keys = ON');
+    db.pragma('busy_timeout = 5000');
   }
   return db;
 }
@@ -110,12 +108,12 @@ function initializeSchema() {
       id              INTEGER PRIMARY KEY AUTOINCREMENT,
       mentor_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       day_of_week     INTEGER NOT NULL CHECK(day_of_week BETWEEN 0 AND 6),
-      start_time      TEXT    NOT NULL,  -- HH:MM (24h)
-      end_time        TEXT    NOT NULL,  -- HH:MM (24h)
-      label           TEXT,              -- e.g. "Morning slot"
+      start_time      TEXT    NOT NULL,
+      end_time        TEXT    NOT NULL,
+      label           TEXT,
       is_active       INTEGER DEFAULT 1,
-      effective_from  INTEGER,           -- unix date (NULL = always)
-      effective_until INTEGER,           -- unix date (NULL = always)
+      effective_from  INTEGER,
+      effective_until INTEGER,
       created_at      INTEGER DEFAULT (unixepoch())
     );
 
@@ -132,11 +130,11 @@ function initializeSchema() {
                         CHECK(status IN ('pending','confirmed','in_progress','completed','cancelled')),
       payment_status  TEXT    DEFAULT 'unpaid'
                         CHECK(payment_status IN ('unpaid','paid','refunded','waived')),
-      payment_waived  INTEGER DEFAULT 0,   -- admin override
+      payment_waived  INTEGER DEFAULT 0,
       amount          REAL    DEFAULT 0,
       notes_enc       TEXT,
       feedback_given  INTEGER DEFAULT 0,
-      video_room      TEXT,               -- Jitsi room name
+      video_room      TEXT,
       calendar_uid    TEXT,
       created_at      INTEGER DEFAULT (unixepoch()),
       updated_at      INTEGER DEFAULT (unixepoch())
@@ -152,7 +150,7 @@ function initializeSchema() {
       started_at      INTEGER,
       ended_at        INTEGER,
       duration_mins   INTEGER,
-      recording_url   TEXT,              -- mentor/admin pastes secure link post-session
+      recording_url   TEXT,
       recording_uploaded_by INTEGER REFERENCES users(id),
       created_at      INTEGER DEFAULT (unixepoch())
     );
@@ -194,7 +192,7 @@ function initializeSchema() {
       razorpay_order_id     TEXT    UNIQUE,
       razorpay_payment_id   TEXT,
       razorpay_signature    TEXT,
-      amount_paise          INTEGER NOT NULL,   -- in paise (1 INR = 100 paise)
+      amount_paise          INTEGER NOT NULL,
       currency              TEXT    DEFAULT 'INR',
       status                TEXT    DEFAULT 'created'
                               CHECK(status IN ('created','paid','failed','refunded')),
@@ -409,4 +407,16 @@ function initializeSchema() {
     CREATE INDEX IF NOT EXISTS idx_subscriptions_user    ON subscriptions(user_id);
     CREATE INDEX IF NOT EXISTS idx_availability_mentor   ON mentor_availability(mentor_id, day_of_week);
     CREATE INDEX IF NOT EXISTS idx_testimonials_public   ON testimonials(is_public, is_approved, rating);
-    CREATE INDEX IF 
+  `);
+
+  console.log('✓ Schema initialized (better-sqlite3)');
+}
+
+function closeDb() {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
+module.exports = { getDb, initializeSchema, closeDb };
