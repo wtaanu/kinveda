@@ -156,6 +156,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .act-btn{padding:7px 13px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px;}
 .act-btn.pay{background:#E8734A;color:white;}
 .act-btn.join{background:var(--primary);color:white;}
+.act-btn.start-now{background:#059669;color:white;animation:pulse-green 1.5s infinite;font-size:12px;padding:8px 16px;}
+@keyframes pulse-green{0%,100%{box-shadow:0 0 0 0 rgba(5,150,105,.4);}50%{box-shadow:0 0 0 6px rgba(5,150,105,0);}}
 .act-btn.rec{background:#6D28D9;color:white;}
 .act-btn.sub-cancel{background:white;color:var(--sos);border:1.5px solid var(--sos);font-size:12px;padding:8px 16px;}
 
@@ -270,7 +272,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
           <div id="upcomingSessionsSnap"><div class="loading-state">Loading...</div></div>
         </div>
         <div class="card">
-          <div class="card-h"><h3>🗺️ Journey Highlights</h3></div>
+          <div class="card-h"><h3>🗺️ Journey Highlights</h3><a href="#" id="viewMentorLink" style="display:none;" onclick="viewMentorProfile()">👤 View My KinMentor</a></div>
           <div id="journeySnap"></div>
         </div>
       </div>
@@ -575,6 +577,19 @@ async function loadProfile() {
   document.getElementById('pf-city').value   = profileData.city || '';
   document.getElementById('pf-family').value = profileData.familyStructure || '';
   document.getElementById('pf-child').value  = profileData.childStatus || '';
+  // Show "View My KinMentor" link if a mentor is assigned
+  if (profileData.assignedMentorId) {
+    const link = document.getElementById('viewMentorLink');
+    if (link) link.style.display = 'inline';
+  }
+}
+
+function viewMentorProfile() {
+  if (!profileData?.assignedMentorId) {
+    KV.showToast('No KinMentor assigned yet. Admin will assign one soon.', 'info');
+    return;
+  }
+  window.open(`kinveda-kinmentor-profile.html?id=${profileData.assignedMentorId}`, '_blank');
 }
 
 async function loadSessions() {
@@ -681,13 +696,23 @@ function sessionCard(s) {
   const statusLabel = isCompleted ? 'Completed' : (isCancelled ? 'Cancelled' : (unpaid ? '⚠ Payment Due' : 'Confirmed'));
 
   // Build action buttons
+  const nowTs = Math.floor(Date.now() / 1000);
+  const sessionTs = s.scheduledAt || 0;
+  // Session is joinable from 10 min before start until 2 hours after start
+  const isJoinable = sessionTs > 0 && nowTs >= (sessionTs - 600) && nowTs <= (sessionTs + 7200);
+
   let actions = '';
   if (unpaid && !isCompleted && !isCancelled) {
     actions += `<button class="act-btn pay" onclick="paySession(${s.id})">💳 Pay ${KV.fmtINR(s.feeAmount || 0)}</button>`;
   }
   if (!unpaid && !isCompleted && !isCancelled && s.videoRoom) {
     const name = encodeURIComponent(profileData?.name || userData?.name || 'KinMember');
-    actions += `<button class="act-btn join" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🎥 Join Session</button>`;
+    if (isJoinable) {
+      // Session is NOW — show a prominent green "Start Session" button
+      actions += `<button class="act-btn start-now" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🟢 Start Session Now</button>`;
+    } else {
+      actions += `<button class="act-btn join" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🎥 Join Session</button>`;
+    }
   }
   if (s.recordingUrl) {
     actions += `<a class="act-btn rec" href="${s.recordingUrl}" target="_blank" rel="noopener">▶ View Recording</a>`;

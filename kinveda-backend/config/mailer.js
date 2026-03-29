@@ -148,10 +148,121 @@ async function sendPasswordReset(toEmail, resetUrl) {
   });
 }
 
+// ─── Session Scheduled by Admin (notify KinMember) ───────────────────────────
+async function sendSessionScheduledEmail(toEmail, memberName, mentorName, scheduledAt, durationMins) {
+  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
+  });
+  await getTransporter().sendMail({
+    from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `📅 Your Session Has Been Scheduled — ${sessionDate}`,
+    html: wrapHtml('Session Scheduled for You', `
+      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>Great news! A session has been scheduled for you with your KinMentor.</p>
+      <div class="field"><strong>KinMentor</strong>${mentorName}</div>
+      <div class="field"><strong>Date & Time (IST)</strong>${sessionDate}</div>
+      <div class="field"><strong>Duration</strong>${durationMins} minutes</div>
+      <p>Please log in to your dashboard to confirm payment and get your session join link.</p>
+      <a href="${process.env.FRONTEND_URL}/kinveda-kinmember.html" class="btn">View My Sessions →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">All sessions are encrypted and private. 🔒</p>
+    `)
+  });
+}
+
+// ─── Upcoming Session Reminder (sent at scheduled time − 15 min) ─────────────
+async function sendSessionReminderEmail(toEmail, recipientName, otherPartyName, scheduledAt, videoRoom, role) {
+  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
+  });
+  const dashboardUrl = role === 'kinmentor'
+    ? `${process.env.FRONTEND_URL}/kinveda-kinmentor.html`
+    : `${process.env.FRONTEND_URL}/kinveda-kinmember.html`;
+
+  await getTransporter().sendMail({
+    from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `⏰ Reminder: Your session starts in 15 minutes!`,
+    html: wrapHtml('Session Starting Soon', `
+      <p>Hello <strong>${recipientName}</strong>,</p>
+      <p>Your KinVeda session starts in <strong>15 minutes</strong>.</p>
+      <div class="field"><strong>${role === 'kinmentor' ? 'KinMember' : 'KinMentor'}</strong>${otherPartyName}</div>
+      <div class="field"><strong>Time (IST)</strong>${sessionDate}</div>
+      <p>Click the button below to open your dashboard and join the session.</p>
+      <a href="${dashboardUrl}" class="btn">Join Session Now →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">Please join 2–3 minutes early to test your audio and video.</p>
+    `)
+  });
+}
+
+// ─── Notes / Homework Assigned to KinMember ──────────────────────────────────
+async function sendNotesAssignedEmail(toEmail, memberName, mentorName, taskSummary) {
+  await getTransporter().sendMail({
+    from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `📝 Your KinMentor has shared notes & homework with you`,
+    html: wrapHtml('New Notes from Your KinMentor', `
+      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>Your KinMentor <strong>${mentorName}</strong> has added notes or a homework task for you.</p>
+      ${taskSummary ? `<div class="field"><strong>Task</strong>${taskSummary}</div>` : ''}
+      <p>Log in to your dashboard to review your notes and complete your homework.</p>
+      <a href="${process.env.FRONTEND_URL}/kinveda-kinmember.html" class="btn">View My Homework →</a>
+    `)
+  });
+}
+
+// ─── Payment / Purchase Confirmation ─────────────────────────────────────────
+async function sendPaymentConfirmationEmail(toEmail, memberName, description, amountInr, txnId) {
+  const paidAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+  await getTransporter().sendMail({
+    from: `"KinVeda Payments" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `✅ Payment Confirmed — ₹${amountInr} received`,
+    html: wrapHtml('Payment Confirmation', `
+      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>We have successfully received your payment. Thank you!</p>
+      <div class="field"><strong>Description</strong>${description}</div>
+      <div class="field"><strong>Amount Paid</strong>₹${amountInr}</div>
+      <div class="field"><strong>Transaction ID</strong>${txnId || 'N/A'}</div>
+      <div class="field"><strong>Date & Time (IST)</strong>${paidAt}</div>
+      <a href="${process.env.FRONTEND_URL}/kinveda-kinmember.html" class="btn">View My Billing →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">Please keep this email as your payment receipt.</p>
+    `)
+  });
+}
+
+// ─── Mentor Payout Invoice ────────────────────────────────────────────────────
+async function sendMentorPayoutInvoice(toEmail, mentorName, grossAmount, platformCut, payoutAmount, periodLabel, sessions, transferRef, mode) {
+  const sentAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+  await getTransporter().sendMail({
+    from: `"KinVeda Finance" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `💰 KinVeda Payout — ₹${payoutAmount} for ${periodLabel}`,
+    html: wrapHtml('Your Weekly Payout Invoice', `
+      <p>Hello <strong>${mentorName}</strong>,</p>
+      <p>Your KinVeda earnings for <strong>${periodLabel}</strong> have been processed.</p>
+      <div class="field"><strong>Sessions Covered</strong>${sessions}</div>
+      <div class="field"><strong>Gross Earnings</strong>₹${grossAmount}</div>
+      <div class="field"><strong>KinVeda Platform Fee (20%)</strong>−₹${platformCut}</div>
+      <div class="field" style="background:#D1FAE5;"><strong>Net Payout to You</strong>₹${payoutAmount}</div>
+      <div class="field"><strong>Payment Mode</strong>${mode === 'offline' ? 'Offline / Manual Transfer' : 'Online Bank Transfer'}</div>
+      ${transferRef ? `<div class="field"><strong>Reference / UTR</strong>${transferRef}</div>` : ''}
+      <div class="field"><strong>Processed On</strong>${sentAt}</div>
+      <a href="${process.env.FRONTEND_URL}/kinveda-kinmentor.html" class="btn">View My Earnings →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">Payouts are processed every Tuesday. KinVeda retains 20% as platform commission.</p>
+    `)
+  });
+}
+
 module.exports = {
   sendWelcomeEmail,
   sendAdminChatNotification,
   sendSOSAlert,
   sendSessionConfirmation,
+  sendSessionScheduledEmail,
+  sendSessionReminderEmail,
+  sendNotesAssignedEmail,
+  sendPaymentConfirmationEmail,
+  sendMentorPayoutInvoice,
   sendPasswordReset
 };

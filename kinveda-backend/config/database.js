@@ -409,7 +409,28 @@ function initializeSchema() {
     CREATE INDEX IF NOT EXISTS idx_testimonials_public   ON testimonials(is_public, is_approved, rating);
   `);
 
-  console.log('✓ Schema initialized (better-sqlite3)');
+  // ─── Migrations: add columns that may not exist in older DBs ────────────────
+  const migrations = [
+    // Payment settlement columns on kinmentor_profiles
+    "ALTER TABLE kinmentor_profiles ADD COLUMN payment_mode TEXT DEFAULT 'offline' CHECK(payment_mode IN ('offline','online'))",
+    "ALTER TABLE kinmentor_profiles ADD COLUMN bank_account_enc TEXT",
+    "ALTER TABLE kinmentor_profiles ADD COLUMN bank_ifsc_enc TEXT",
+    "ALTER TABLE kinmentor_profiles ADD COLUMN bank_holder_enc TEXT",
+    "ALTER TABLE kinmentor_profiles ADD COLUMN bank_verified INTEGER DEFAULT 0",
+    "ALTER TABLE kinmentor_profiles ADD COLUMN bank_verify_note TEXT",
+    // Session payment tracking columns
+    "ALTER TABLE booking_sessions ADD COLUMN session_payment_confirmed INTEGER DEFAULT 0",
+    "ALTER TABLE booking_sessions ADD COLUMN reminder_sent INTEGER DEFAULT 0",
+    // Admin payout tracking
+    "ALTER TABLE payouts ADD COLUMN payment_mode TEXT DEFAULT 'offline' CHECK(payment_mode IN ('offline','online'))",
+    "ALTER TABLE payouts ADD COLUMN invoice_sent INTEGER DEFAULT 0",
+    "ALTER TABLE payouts ADD COLUMN week_label TEXT"
+  ];
+  for (const sql of migrations) {
+    try { database.exec(sql); } catch (e) { /* column already exists — skip */ }
+  }
+
+  console.log('✓ Schema initialized (node:sqlite)');
 }
 
 function closeDb() {

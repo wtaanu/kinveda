@@ -10,6 +10,10 @@ const { body, validationResult } = require('express-validator');
 const { getDb } = require('../config/database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { encrypt, decrypt, encryptJSON, decryptJSON } = require('../middleware/encrypt');
+const {
+  sendSessionScheduledEmail, sendSessionConfirmation,
+  sendMentorPayoutInvoice, sendPaymentConfirmationEmail
+} = require('../config/mailer');
 
 // All admin routes require auth + admin role
 router.use(requireAuth, requireAdmin);
@@ -462,6 +466,21 @@ router.post('/sessions/book', [
   auditLog(db, req.user.id, 'ADMIN_BOOK_SESSION', 'booking_sessions', sessionId,
     { memberId, mentorId, waivePayment }, req.ip);
 
+  // Notify KinMember by email that a session has been scheduled for them
+  try {
+    const member = db.prepare('SELECT email, name_enc FROM users WHERE id = ?').get(memberId);
+    const mentor = db.prepare('SELECT name_enc FROM users WHERE id = ?').get(mentorId);
+    if (member && mentor) {
+      sendSessionScheduledEmail(
+        member.email,
+        decrypt(member.name_enc),
+        decrypt(mentor.name_enc),
+        scheduledAt,
+        durationMins
+      ).catch(console.error);
+    }
+  } catch (e) { console.error('[mail] session scheduled:', e.message); }
+
   res.json({ success: true, sessionId, videoRoom: roomName });
 });
 
@@ -583,6 +602,196 @@ router.get('/pre-registered', (req, res) => {
     ORDER BY u.created_at DESC LIMIT 50
   `).all();
   res.json({ success: true, users: users.map(u => ({ ...u, name: decrypt(u.name_enc), name_enc: undefined })) });
+});
+
+// ─── PAYMENT MANAGEMENT ──────────────────────────────────────────────────────
+
+// GET /payment/member-receipts — all member payments (with mentor info)
+router.get('/payment/member-receipts', (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT p.id, p.user_id, p.session_id, p.razorpay_payment_id, p.razorpay_order_id,
+           p.amount_paise, p.status, p.payment_type, p.created_at,
+           um.email AS member_email, um.name_enc AS member_name_enc,
+           ut.email AS mentor_email, ut.name_enc AS mentor_name_enc,
+           bs.scheduled_at, bs.duration_mins
+    FROM payments p
+    JOIN users um ON um.id = p.user_id
+    LEFT JOIN booking_sessions bs ON bs.id = p.session_id
+    LEFT JOIN users ut ON ut.id = bs.mentor_id
+    WHERE p.status = 'paid'
+    ORDER BY p.created_at DESC
+    LIMIT 200
+  `).all();
+
+  res.json({
+    success: true,
+    receipts: rows.map(r => ({
+      id:           r.id,
+      memberEmail:  r.member_email,
+      memberName:   decrypt(r.member_name_enc),
+      mentorEmail:  r.mentor_email,
+      mentorName:   r.mentor_name_enc ? decrypt(r.mentor_name_enc) : null,
+      amountInr:    Math.round((r.amount_paise || 0) / 100),
+      paymentId:    r.razorpay_payment_id,
+      paymentType:  r.payment_type,
+      sessionAt:    r.scheduled_at,
+      paidAt:       r.created_at
+    }))
+  });
+});
+
+// PATCH /payment/session/:id/received — admin marks offline payment as received from member
+router.patch('/payment/session/:id/received', (req, res) => {
+  const db = getDb();
+  const sessionId = parseInt(req.params.id);
+  db.prepare(`UPDATE booking_sessions SET payment_status = 'paid', updated_at = unixepoch() WHERE id = ?`).run(sessionId);
+  auditLog(db, req.user.id, 'MARK_PAYMENT_RECEIVED', 'booking_sessions', sessionId, null, req.ip);
+  res.json({ success: true, message: 'Payment marked as received from member.' });
+});
+
+// POST /payouts/send-invoice — admin marks payout sent + emails invoice to mentor
+router.post('/payouts/send-invoice', [
+  body('mentorId').isInt(),
+  body('grossAmount').isFloat({ min: 1 }),
+  body('sessions').isInt({ min: 1 }),
+  body('weekLabel').trim().isLength({ min: 3 })
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
+  const { mentorId, grossAmount, sessions, weekLabel, transferRef, sessionIds } = req.body;
+  const db    = getDb();
+  const PLATFORM_CUT_PCT = 20;
+  const platformCut  = parseFloat(grossAmount) * PLATFORM_CUT_PCT / 100;
+  const payoutAmount = parseFloat(grossAmount) - platformCut;
+  const now = Math.floor(Date.now() / 1000);
+
+  const mentor = db.prepare(`
+    SELECT u.email, u.name_enc, kp.payment_mode, kp.bank_holder_enc
+    FROM users u JOIN kinmentor_profiles kp ON kp.user_id = u.id
+    WHERE u.id = ?
+  `).get(mentorId);
+  if (!mentor) return res.status(404).json({ success: false, message: 'Mentor not found.' });
+
+  // Record payout
+  const result = db.prepare(`
+    INSERT INTO payouts (admin_id, mentor_id, gross_amount, platform_cut_pct, payout_amount,
+      status, transfer_ref, week_label, invoice_sent, payment_mode, processed_at, created_at)
+    VALUES (?, ?, ?, ?, ?, 'processed', ?, ?, 1, ?, ?, unixepoch())
+  `).run(
+    req.user.id, mentorId, grossAmount, PLATFORM_CUT_PCT, payoutAmount,
+    transferRef || null, weekLabel,
+    mentor.payment_mode || 'offline', now
+  );
+
+  // Update mentor total_paid_out
+  db.prepare(`UPDATE kinmentor_profiles SET total_paid_out = total_paid_out + ?, updated_at = unixepoch() WHERE user_id = ?`)
+    .run(payoutAmount, mentorId);
+
+  // Mark individual sessions' payouts if IDs provided
+  if (Array.isArray(sessionIds) && sessionIds.length) {
+    for (const sid of sessionIds) {
+      db.prepare(`INSERT OR IGNORE INTO payouts (admin_id, mentor_id, session_id, gross_amount, platform_cut_pct, payout_amount, status, processed_at, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'processed', ?, unixepoch())`)
+        .run(req.user.id, mentorId, sid, 0, PLATFORM_CUT_PCT, 0, now);
+    }
+  }
+
+  auditLog(db, req.user.id, 'PAYOUT_INVOICE_SENT', 'payouts', result.lastInsertRowid,
+    { mentorId, grossAmount, payoutAmount, weekLabel }, req.ip);
+
+  // Email invoice to mentor
+  try {
+    await sendMentorPayoutInvoice(
+      mentor.email,
+      mentor.bank_holder_enc ? decrypt(mentor.bank_holder_enc) : decrypt(db.prepare('SELECT name_enc FROM users WHERE id = ?').get(mentorId)?.name_enc || ''),
+      Math.round(grossAmount),
+      Math.round(platformCut),
+      Math.round(payoutAmount),
+      weekLabel,
+      sessions,
+      transferRef || null,
+      mentor.payment_mode || 'offline'
+    );
+  } catch (e) { console.error('[mail] payout invoice:', e.message); }
+
+  res.json({ success: true, payoutId: result.lastInsertRowid, payoutAmount: Math.round(payoutAmount) });
+});
+
+// GET /mentor/:id/billing — admin view of a mentor's billing/bank details
+router.get('/mentor/:id/billing', (req, res) => {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT kp.payment_mode, kp.bank_account_enc, kp.bank_ifsc_enc, kp.bank_holder_enc,
+           kp.bank_verified, kp.bank_verify_note
+    FROM kinmentor_profiles kp WHERE kp.user_id = ?
+  `).get(req.params.id);
+  if (!row) return res.status(404).json({ success: false, message: 'Not found.' });
+
+  res.json({
+    success: true,
+    billing: {
+      paymentMode:  row.payment_mode || 'offline',
+      bankAccount:  row.bank_account_enc ? decrypt(row.bank_account_enc) : '',
+      bankIfsc:     row.bank_ifsc_enc    ? decrypt(row.bank_ifsc_enc)    : '',
+      bankHolder:   row.bank_holder_enc  ? decrypt(row.bank_holder_enc)  : '',
+      bankVerified: !!row.bank_verified,
+      bankVerifyNote: row.bank_verify_note || ''
+    }
+  });
+});
+
+// PATCH /mentor/:id/billing/verify — admin verifies or rejects a mentor's bank account
+router.patch('/mentor/:id/billing/verify', [
+  body('verified').isBoolean(),
+  body('note').optional().trim()
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
+  const { verified, note } = req.body;
+  const db = getDb();
+  db.prepare(`UPDATE kinmentor_profiles SET bank_verified = ?, bank_verify_note = ?, updated_at = unixepoch() WHERE user_id = ?`)
+    .run(verified ? 1 : 0, note || (verified ? 'Verified by admin' : 'Rejected by admin'), req.params.id);
+
+  auditLog(db, req.user.id, verified ? 'BANK_VERIFIED' : 'BANK_REJECTED', 'kinmentor_profiles', req.params.id, { note }, req.ip);
+  res.json({ success: true, message: verified ? 'Bank account verified.' : 'Bank account rejected.' });
+});
+
+// GET /mentors/summary — all mentors with earnings and payout summary for admin dashboard
+router.get('/mentors/summary', (req, res) => {
+  const db = getDb();
+  const mentors = db.prepare(`
+    SELECT u.id, u.email, u.name_enc, u.is_active, u.created_at,
+           kp.total_earned, kp.total_paid_out, kp.payment_mode, kp.bank_verified,
+           kp.avg_rating, kp.total_sessions, kp.is_rci_verified, kp.is_profile_public,
+           (kp.total_earned - kp.total_paid_out) AS balance_due
+    FROM users u
+    JOIN kinmentor_profiles kp ON kp.user_id = u.id
+    WHERE u.role = 'kinmentor'
+    ORDER BY balance_due DESC, u.created_at DESC
+  `).all();
+
+  res.json({
+    success: true,
+    mentors: mentors.map(m => ({
+      id:            m.id,
+      email:         m.email,
+      name:          decrypt(m.name_enc),
+      isActive:      !!m.is_active,
+      totalEarned:   m.total_earned || 0,
+      totalPaidOut:  m.total_paid_out || 0,
+      balanceDue:    m.balance_due || 0,
+      paymentMode:   m.payment_mode || 'offline',
+      bankVerified:  !!m.bank_verified,
+      avgRating:     m.avg_rating || 0,
+      totalSessions: m.total_sessions || 0,
+      isRciVerified: !!m.is_rci_verified,
+      isPublic:      !!m.is_profile_public,
+      createdAt:     m.created_at
+    }))
+  });
 });
 
 module.exports = router;

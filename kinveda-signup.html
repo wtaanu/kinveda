@@ -328,4 +328,36 @@
       document.getElementById('formCard').classList.remove('show');
       const sc = document.getElementById('successCard');
       sc.classList.add('show');
+      document.getElementById('successMsg').textContent =
+        `Welcome, ${data.user.name}! Your account is ready.${
+          data.user.role === 'kinmentor'
+            ? ' Your profile will be reviewed and verified by our team before going live.'
+            : ' You can now access your wellness dashboard.'
+        }`;
+      setTimeout(() => {
+        window.location.href = data.user.role === 'kinmentor'
+          ? 'kinveda-kinmentor.html'
+          : 'kinveda-kinmember.html';
+      }, 2500);
+    } catch (err) {
+      showError('Connection error. Is the server running?');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // ─── Pre-select role from URL param (?role=kinmentor) ───────────────────────
+  (function() {
+    const urlRole = new URLSearchParams(window.location.search).get('role');
+    if (urlRole === 'kinmentor' || urlRole === 'kinmember') {
+      // Auto-click the matching role card so the form appears pre-filled
+      selectRole(urlRole);
+    }
+  })();
+</script>
+<script src="kinveda-api.js"></script>
+</body>
+</html>
+      sc.classList.add('show');
       document.getElementById('successMsg').textContent = `Welcome, ${data.user.name}! Your account is ready.${
