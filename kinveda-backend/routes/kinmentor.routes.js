@@ -21,6 +21,7 @@ router.get('/public/:id', requireAuth, (req, res) => {
            kp.bio_enc, kp.approach_enc, kp.qualification_enc,
            kp.specializations, kp.languages, kp.experience_years,
            kp.fee_30min, kp.fee_60min, kp.fee_monthly,
+           kp.package_sessions_per_month, kp.package_mins_per_session,
            kp.is_rci_verified, kp.avg_rating, kp.total_reviews, kp.total_sessions,
            kp.rci_license
     FROM users u
@@ -32,22 +33,25 @@ router.get('/public/:id', requireAuth, (req, res) => {
 
   return res.json({
     success: true,
-    profile: {
-      name:            decrypt(row.name_enc),
-      city:            decrypt(row.city_enc),
-      bio:             decrypt(row.bio_enc),
-      approach:        decrypt(row.approach_enc),
-      qualification:   decrypt(row.qualification_enc),
-      specializations: row.specializations ? JSON.parse(row.specializations) : [],
-      languages:       row.languages || 'Hindi, English',
-      experienceYears: row.experience_years || 0,
-      fee30min:        row.fee_30min || 0,
-      fee60min:        row.fee_60min || 0,
-      feeMonthly:      row.fee_monthly || 0,
-      isRciVerified:   !!row.is_rci_verified,
-      avgRating:       row.avg_rating || 0,
-      totalReviews:    row.total_reviews || 0,
-      totalSessions:   row.total_sessions || 0
+    mentor: {
+      id:                     mentorId,
+      name:                   decrypt(row.name_enc),
+      city:                   decrypt(row.city_enc),
+      bio:                    decrypt(row.bio_enc),
+      approach:               decrypt(row.approach_enc),
+      qualification:          decrypt(row.qualification_enc),
+      specializations:        row.specializations ? JSON.parse(row.specializations) : [],
+      languages:              row.languages || 'Hindi, English',
+      experienceYears:        row.experience_years || 0,
+      rate30min:              row.fee_30min || 0,
+      rate60min:              row.fee_60min || 0,
+      rateMonthly:            row.fee_monthly || 0,
+      packageSessions:        row.package_sessions_per_month || 8,
+      packageMins:            row.package_mins_per_session || 50,
+      isRciVerified:          !!row.is_rci_verified,
+      avgRating:              row.avg_rating || 0,
+      totalReviews:           row.total_reviews || 0,
+      totalSessions:          row.total_sessions || 0
     }
   });
 });
@@ -57,8 +61,10 @@ router.get('/public-list', requireAuth, (req, res) => {
   const db = getDb();
   const mentors = db.prepare(`
     SELECT u.id, u.name_enc, u.city_enc,
-           kp.bio_enc, kp.specializations, kp.languages, kp.experience_years,
-           kp.fee_30min, kp.fee_60min, kp.avg_rating, kp.total_reviews, kp.is_rci_verified
+           kp.bio_enc, kp.qualification_enc, kp.specializations, kp.languages, kp.experience_years,
+           kp.fee_30min, kp.fee_60min, kp.fee_monthly,
+           kp.package_sessions_per_month, kp.package_mins_per_session,
+           kp.avg_rating, kp.total_reviews, kp.is_rci_verified
     FROM users u
     JOIN kinmentor_profiles kp ON kp.user_id = u.id
     WHERE u.role = 'kinmentor' AND u.is_active = 1 AND kp.is_profile_public = 1
@@ -73,11 +79,15 @@ router.get('/public-list', requireAuth, (req, res) => {
       name:            decrypt(m.name_enc),
       city:            decrypt(m.city_enc),
       bio:             decrypt(m.bio_enc),
+      qualification:   decrypt(m.qualification_enc),
       specializations: m.specializations ? JSON.parse(m.specializations) : [],
       languages:       m.languages || 'Hindi, English',
       experienceYears: m.experience_years || 0,
-      fee30min:        m.fee_30min || 0,
-      fee60min:        m.fee_60min || 0,
+      rate30min:       m.fee_30min || 0,
+      rate60min:       m.fee_60min || 0,
+      rateMonthly:     m.fee_monthly || 0,
+      packageSessions: m.package_sessions_per_month || 8,
+      packageMins:     m.package_mins_per_session || 50,
       avgRating:       m.avg_rating || 0,
       totalReviews:    m.total_reviews || 0,
       isRciVerified:   !!m.is_rci_verified
@@ -144,6 +154,8 @@ router.get('/profile', requireAuth, requireKinMentor, (req, res) => {
       rate30min: row.rate_30min,
       rate60min: row.rate_60min,
       rateMonthly: row.rate_monthly,
+      packageSessions: row.package_sessions_per_month || 8,
+      packageMins: row.package_mins_per_session || 50,
       availability: row.availability_json ? JSON.parse(row.availability_json) : [],
       isRciVerified: !!row.is_rci_verified,
       isPaymentVerified: !!row.is_payment_verified,
@@ -159,7 +171,7 @@ router.put('/profile', requireAuth, requireKinMentor, (req, res) => {
   const {
     name, phone, city, rciLicense, qualification, bio, approach,
     specializations, languages, experienceYears,
-    rate30min, rate60min, rateMonthly, availability
+    rate30min, rate60min, rateMonthly, packageSessions, packageMins, availability
   } = req.body;
 
   const db = getDb();
@@ -171,12 +183,14 @@ router.put('/profile', requireAuth, requireKinMentor, (req, res) => {
       rci_license = ?, qualification_enc = ?, bio_enc = ?, approach_enc = ?,
       specializations = ?, languages = ?, experience_years = ?,
       rate_30min = ?, rate_60min = ?, rate_monthly = ?,
+      package_sessions_per_month = ?, package_mins_per_session = ?,
       availability_json = ?, updated_at = unixepoch()
     WHERE user_id = ?
   `).run(
     rciLicense, encrypt(qualification), encrypt(bio), encrypt(approach),
     JSON.stringify(specializations || []), languages, experienceYears || 0,
     rate30min || 0, rate60min || 0, rateMonthly || 0,
+    packageSessions || 8, packageMins || 50,
     JSON.stringify(availability || []),
     req.user.id
   );
@@ -344,8 +358,9 @@ router.get('/public/:userId', (req, res) => {
   const db = getDb();
   const row = db.prepare(`
     SELECT u.id, u.name_enc, u.city_enc,
-           kp.bio_enc, kp.approach_enc, kp.specializations, kp.languages,
+           kp.bio_enc, kp.approach_enc, kp.qualification_enc, kp.specializations, kp.languages,
            kp.experience_years, kp.rate_30min, kp.rate_60min, kp.rate_monthly,
+           kp.package_sessions_per_month, kp.package_mins_per_session,
            kp.availability_json, kp.is_rci_verified, kp.is_payment_verified,
            kp.avg_rating, kp.total_reviews, kp.total_sessions, kp.rci_license
     FROM users u JOIN kinmentor_profiles kp ON kp.user_id = u.id
@@ -376,6 +391,9 @@ router.get('/public/:userId', (req, res) => {
       rate30min: row.rate_30min,
       rate60min: row.rate_60min,
       rateMonthly: row.rate_monthly,
+      packageSessions: row.package_sessions_per_month || 8,
+      packageMins: row.package_mins_per_session || 50,
+      qualification: decrypt(row.qualification_enc),
       availability: row.availability_json ? JSON.parse(row.availability_json) : [],
       isRciVerified: !!row.is_rci_verified,
       isPaymentVerified: !!row.is_payment_verified,

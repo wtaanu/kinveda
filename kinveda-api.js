@@ -394,4 +394,40 @@ const KV = (() => {
 
   // ─── Auto-init ────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
-   
+    injectFavicon();
+    // Inject chat widget on non-portal pages (landing, about, etc.)
+    // Portal pages have their own chat/messaging — skip to avoid duplicates
+    const portalPages = ['kinveda-kinmember.html', 'kinveda-kinmentor.html', 'kinveda-admin'];
+    const isPortalPage = portalPages.some(p => window.location.pathname.includes(p));
+    if (!isPortalPage) {
+      injectChatWidget();
+    }
+  });
+
+  // ─── Expose Public API ────────────────────────────────────────────────────────
+  return {
+    API_BASE,
+    get,
+    post,
+    put,
+    patch,
+    del,
+    requireAuth,
+    signOut,
+    getToken,
+    getUser,
+    quickExit,
+    fmtDate,
+    fmtDateTime,
+    fmtINR,
+    openRazorpayCheckout,
+    payForSession,
+    subscribe,
+    joinVideoCall,
+    showToast,
+    toggleChat,
+    sendChat,
+    injectFavicon,
+    injectChatWidget
+  };
+})();

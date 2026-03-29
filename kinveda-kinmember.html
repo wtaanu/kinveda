@@ -187,6 +187,33 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .chip-pending{background:#FEF3C7;color:#92400E;}
 .chip-approved{background:#D1FAE5;color:#065F46;}
 .chip-rejected{background:#FEE2E2;color:#991B1B;}
+
+/* Topbar dropdowns */
+.topbar-drop-wrap{position:relative;}
+.topbar-dropdown{position:absolute;top:46px;right:0;background:white;border:1px solid var(--border);border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,.15);width:320px;z-index:9999;overflow:hidden;display:none;}
+.topbar-dropdown.open{display:block;}
+.drop-head{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.drop-head h4{font-size:14px;font-weight:700;}
+.drop-head span{font-size:11px;color:var(--muted);cursor:pointer;}
+.drop-item{padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;}
+.drop-item:last-child{border:none;}
+.drop-item:hover{background:var(--bg);}
+.drop-item h5{font-size:13px;font-weight:600;margin-bottom:2px;}
+.drop-item p{font-size:11px;color:var(--muted);}
+.drop-empty{padding:28px;text-align:center;font-size:13px;color:var(--muted);}
+
+/* Profile photo */
+.pf-avatar-wrap{text-align:center;margin-bottom:22px;}
+.pf-avatar-img{width:88px;height:88px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 10px;background:linear-gradient(135deg,#EEF7F5,#C8E6E1);border:3px solid var(--primary);overflow:hidden;}
+.pf-avatar-img img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+.pf-avatar-change{display:inline-block;background:var(--bg);color:var(--primary);border:1.5px solid var(--primary);padding:5px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;}
+
+/* Mentor package selector */
+.mentor-card-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;flex-wrap:wrap;}
+.mentor-card{border:2px solid var(--border);border-radius:12px;padding:14px;min-width:150px;cursor:pointer;text-align:center;transition:all .2s;flex-shrink:0;}
+.mentor-card:hover,.mentor-card.selected{border-color:var(--primary);background:#EEF7F5;}
+.mentor-card .mc-name{font-size:13px;font-weight:700;margin-top:6px;}
+.mentor-card .mc-rate{font-size:12px;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -233,8 +260,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   <div class="topbar">
     <h1 id="topbarTitle">My Dashboard</h1>
     <div class="topbar-r">
-      <div class="nb">🔔<div class="nd"></div></div>
-      <div class="av" id="topAv">😊</div>
+      <div class="topbar-drop-wrap">
+        <div class="nb" id="notifBell" onclick="toggleNotifDrop(event)" title="Notifications">🔔<div class="nd" id="notifDot"></div></div>
+        <div class="topbar-dropdown" id="notifDrop">
+          <div class="drop-head"><h4>🔔 Notifications</h4><span onclick="markAllRead(event)">Mark all read</span></div>
+          <div id="notifList"><div class="drop-empty">Loading...</div></div>
+        </div>
+      </div>
+      <div class="topbar-drop-wrap">
+        <div class="av" id="topAv" onclick="toggleSmileDrop(event)" title="My Wellbeing">😊</div>
+        <div class="topbar-dropdown" id="smileDrop" style="width:280px;">
+          <div class="drop-head"><h4>😊 My Wellbeing</h4></div>
+          <div id="smileContent"><div class="drop-empty">Loading...</div></div>
+        </div>
+      </div>
     </div>
   </div>
   <div class="content">
@@ -375,6 +414,12 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <div class="card">
         <div class="card-h"><h3>👤 My Profile</h3><button class="btn-p" onclick="saveProfile()">Save Changes</button></div>
         <div class="profile-form">
+          <div class="pf-avatar-wrap">
+            <div class="pf-avatar-img" id="pfAvatar">😊</div>
+            <input type="file" id="pfPhotoInput" accept="image/*" style="display:none;" onchange="previewPhoto(this)">
+            <label class="pf-avatar-change" for="pfPhotoInput">📷 Change Photo</label>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px;">Photo is stored locally — not uploaded to server</div>
+          </div>
           <div class="pf-grid">
             <div class="pf-group"><label>Full Name</label><input id="pf-name" type="text"></div>
             <div class="pf-group"><label>Email</label><input id="pf-email" type="email" disabled style="background:#f5f5f5;cursor:not-allowed;"></div>
@@ -441,21 +486,13 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       </div>
       <div id="noSubSection">
         <div class="card">
-          <div class="card-h"><h3>📦 Monthly Wellness Package</h3></div>
-          <div class="pkg">
-            <h4>Unlimited Monthly Care</h4>
-            <p>Unlimited sessions with your assigned KinMentor, priority scheduling, and secure chat — all in one plan.</p>
-            <ul>
-              <li>Unlimited 50-min sessions</li>
-              <li>Priority KinMentor matching</li>
-              <li>Encrypted chat, anytime</li>
-              <li>Crisis support + safety plan</li>
-              <li>Homework & resource library access</li>
-            </ul>
-            <div class="pkg-price">₹2,499 <span>/ month</span></div>
-            <button class="btn-p" onclick="subscribeNow()" id="subscribeBtn">Subscribe Now →</button>
+          <div class="card-h"><h3>📦 Choose Your Package</h3></div>
+          <div style="background:#EEF7F5;border-radius:10px;padding:13px 16px;margin-bottom:18px;font-size:13px;color:var(--primary-dark);">
+            Select a KinMentor and choose from their available packages. Your assigned mentor is shown first.
           </div>
-          <div style="margin-top:18px;font-size:12px;color:var(--muted);line-height:1.7;">
+          <div id="pkgMentorList"><div class="loading-state">Loading mentors...</div></div>
+          <div id="pkgOffers" style="display:none;margin-top:18px;"></div>
+          <div style="margin-top:14px;font-size:12px;color:var(--muted);">
             🔒 Secure payment via Razorpay · Cancel anytime · No hidden fees
           </div>
         </div>
@@ -518,8 +555,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   userData = KV.requireAuth('kinmember');
   if (!userData) return;
 
+  // Back-button triggers logout (portal stays secure)
+  history.pushState(null, '', window.location.href);
+  window.addEventListener('popstate', () => KV.signOut());
+
+  // Close any open dropdowns when clicking elsewhere
+  document.addEventListener('click', closeDropdowns);
+
   document.getElementById('sbName').textContent = userData.name || 'KinMember';
-  document.getElementById('welcomeName').textContent = `Welcome back, ${userData.name} 👋`;
+  document.getElementById('welcomeName').textContent = `Welcome back, ${userData.name || 'there'} 👋`;
 
   // Story textarea character counter
   const storyTa = document.getElementById('storyText');
@@ -538,6 +582,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadSubscription()
   ]);
   renderDashboard();
+  loadSavedPhoto();
+  buildNotifList();
 });
 
 // ─── Panel Navigation ─────────────────────────────────────────────────────────
@@ -801,14 +847,124 @@ function renderPackage() {
   if (activeSubscription) {
     document.getElementById('activeSubSection').style.display = 'block';
     document.getElementById('noSubSection').style.display = 'none';
+    const mentorName = profileData?.assignedMentorName || activeSubscription.mentorName || 'your KinMentor';
     const expiry = activeSubscription.endsAt
       ? `Valid until: ${KV.fmtDate(activeSubscription.endsAt)}`
       : `Active since: ${KV.fmtDate(activeSubscription.createdAt)}`;
-    document.getElementById('subExpiry').textContent = expiry;
+    document.getElementById('subExpiry').textContent = `${expiry} · With ${mentorName}`;
   } else {
     document.getElementById('activeSubSection').style.display = 'none';
     document.getElementById('noSubSection').style.display = 'block';
+    loadMentorPackages();
   }
+}
+
+async function loadMentorPackages() {
+  const el = document.getElementById('pkgMentorList');
+  // If we have an assigned mentor, show only theirs
+  if (profileData?.assignedMentorId) {
+    el.innerHTML = '<div class="loading-state">Loading mentor packages...</div>';
+    const res = await KV.get(`/api/kinmentor/public/${profileData.assignedMentorId}`);
+    if (!res) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);">Could not load mentor info.</p>'; return; }
+    const data = await res.json();
+    if (!data.success || !data.mentor) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);">Mentor profile not available yet.</p>'; return; }
+    const m = data.mentor;
+    el.innerHTML = `<div style="display:flex;align-items:center;gap:14px;border:2px solid var(--primary);border-radius:12px;padding:14px 18px;background:#EEF7F5;margin-bottom:4px;">
+      <div style="font-size:28px;">🧑‍⚕️</div>
+      <div>
+        <div style="font-size:14px;font-weight:700;">${m.name}</div>
+        <div style="font-size:11px;color:var(--muted);">${m.qualification || ''} · ${m.experienceYears || 0} yrs exp</div>
+        <div style="font-size:11px;margin-top:3px;color:var(--primary);font-weight:600;">✓ Your assigned KinMentor</div>
+      </div>
+    </div>`;
+    showMentorOffers(m);
+    return;
+  }
+  // No mentor assigned — load public list
+  const res = await KV.get('/api/kinmentor/public-list');
+  if (!res) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);">Could not load mentors.</p>'; return; }
+  const data = await res.json();
+  const mentors = data.mentors || [];
+  if (!mentors.length) {
+    el.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No mentors are available yet. Please check back soon or contact admin.</p>';
+    return;
+  }
+  window._pkgMentors = mentors;
+  el.innerHTML = `<p style="font-size:13px;color:var(--muted);margin-bottom:12px;">Select a KinMentor to see their packages:</p>
+    <div class="mentor-card-row">${mentors.map(m => `
+      <div class="mentor-card" onclick="selectMentorForPkg(this, ${m.id})" data-id="${m.id}">
+        <div style="font-size:28px;">🧑‍⚕️</div>
+        <div class="mc-name">${m.name}</div>
+        <div class="mc-rate">${m.rateMonthly ? KV.fmtINR(m.rateMonthly) + '/mo' : (m.rate60min ? KV.fmtINR(m.rate60min) + '/hr' : 'Contact admin')}</div>
+      </div>`).join('')}
+    </div>`;
+}
+
+function selectMentorForPkg(el, mentorId) {
+  document.querySelectorAll('.mentor-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  const mentor = (window._pkgMentors || []).find(m => m.id === mentorId);
+  if (mentor) showMentorOffers(mentor);
+}
+
+function showMentorOffers(m) {
+  const el = document.getElementById('pkgOffers');
+  el.style.display = 'block';
+  const sessCount = m.packageSessions || 8;
+  const sessMinutes = m.packageMins || 50;
+  const monthlyRate = m.rateMonthly || 0;
+  const rate30 = m.rate30min || 0;
+  const rate60 = m.rate60min || 0;
+
+  let html = '';
+  if (rate30 > 0) {
+    html += `<div class="pkg" style="margin-bottom:14px;">
+      <h4>30-Min Session</h4>
+      <p>Single focused 30-minute video session with ${m.name}.</p>
+      <ul><li>Encrypted video call</li><li>Session notes</li><li>Resource library access</li></ul>
+      <div class="pkg-price">${KV.fmtINR(rate30)} <span>/ session</span></div>
+      <button class="btn-p" onclick="showPanel('sessions',null)">Book a Session →</button>
+    </div>`;
+  }
+  if (rate60 > 0) {
+    html += `<div class="pkg" style="margin-bottom:14px;">
+      <h4>60-Min Session</h4>
+      <p>Full 60-minute deep-dive video session with ${m.name}.</p>
+      <ul><li>Encrypted video call</li><li>Session notes + homework</li><li>Chat access after session</li></ul>
+      <div class="pkg-price">${KV.fmtINR(rate60)} <span>/ session</span></div>
+      <button class="btn-p" onclick="showPanel('sessions',null)">Book a Session →</button>
+    </div>`;
+  }
+  if (monthlyRate > 0) {
+    html += `<div class="pkg">
+      <h4>Monthly Care Package</h4>
+      <p>${sessCount} sessions of ${sessMinutes} min each per month with ${m.name}.</p>
+      <ul>
+        <li>${sessCount} sessions / month (${sessMinutes} min each)</li>
+        <li>Encrypted chat, anytime</li>
+        <li>Crisis support + safety plan</li>
+        <li>Homework &amp; resource library access</li>
+      </ul>
+      <div class="pkg-price">${KV.fmtINR(monthlyRate)} <span>/ month</span></div>
+      <button class="btn-p" id="subscribeBtn" onclick="subscribeToMentor(${m.id}, this)">Subscribe Now →</button>
+    </div>`;
+  }
+  if (!html) {
+    html = '<p style="font-size:13px;color:var(--muted);padding:8px;">This mentor hasn\'t set package rates yet. Please contact admin.</p>';
+  }
+  el.innerHTML = html;
+}
+
+async function subscribeToMentor(mentorId, btn) {
+  if (btn) btn.disabled = true;
+  await KV.subscribe(mentorId, async () => {
+    KV.showToast('Subscription activated! Welcome to your care plan. 🌿', 'success');
+    await loadSubscription();
+    await loadBilling();
+    renderPackage();
+    renderBilling();
+  });
+  if (btn) btn.disabled = false;
 }
 
 function renderHomework() {
@@ -950,6 +1106,102 @@ async function loadMyTestimonials() {
       <div style="font-size:11px;color:var(--muted);margin-top:5px;">${KV.fmtDate(t.createdAt)}</div>
     </div>`;
   }).join('');
+}
+
+// ─── Dropdown helpers ─────────────────────────────────────────────────────────
+function closeDropdowns() {
+  document.querySelectorAll('.topbar-dropdown').forEach(d => d.classList.remove('open'));
+}
+
+function toggleNotifDrop(e) {
+  e && e.stopPropagation();
+  const drop = document.getElementById('notifDrop');
+  const wasOpen = drop.classList.contains('open');
+  closeDropdowns();
+  if (!wasOpen) { drop.classList.add('open'); buildNotifList(); }
+}
+
+function buildNotifList() {
+  const el = document.getElementById('notifList');
+  const items = [];
+  const nowTs = Math.floor(Date.now() / 1000);
+  const upcoming = sessionsData.filter(s => s.scheduledAt > nowTs && s.status !== 'cancelled').slice(0, 3);
+  upcoming.forEach(s => {
+    items.push(`<div class="drop-item" onclick="showPanel('sessions',null);closeDropdowns();"><h5>📅 Session with ${escapeHtml(s.mentorName)}</h5><p>${KV.fmtDateTime(s.scheduledAt)} · ${s.durationMins} min</p></div>`);
+  });
+  const unpaid = sessionsData.filter(s => s.paymentStatus === 'unpaid' && !s.paymentWaived).slice(0, 2);
+  unpaid.forEach(s => {
+    items.push(`<div class="drop-item" onclick="showPanel('payments',null);closeDropdowns();"><h5>💳 Payment Due — ${KV.fmtINR(s.feeAmount || 0)}</h5><p>Session on ${KV.fmtDate(s.scheduledAt)}</p></div>`);
+  });
+  const hw = homeworkData.filter(h => !h.isCompleted).slice(0, 2);
+  hw.forEach(h => {
+    items.push(`<div class="drop-item" onclick="showPanel('homework',null);closeDropdowns();"><h5>✏️ Homework Due</h5><p>${(h.task || '').slice(0, 60)}${(h.task || '').length > 60 ? '...' : ''}</p></div>`);
+  });
+  el.innerHTML = items.length ? items.join('') : '<div class="drop-empty">You\'re all caught up! 🎉</div>';
+  document.getElementById('notifDot').style.display = items.length ? '' : 'none';
+}
+
+function markAllRead(e) {
+  e && e.stopPropagation();
+  document.getElementById('notifDot').style.display = 'none';
+  document.getElementById('notifList').innerHTML = '<div class="drop-empty">All caught up! 🎉</div>';
+}
+
+function toggleSmileDrop(e) {
+  e && e.stopPropagation();
+  const drop = document.getElementById('smileDrop');
+  const wasOpen = drop.classList.contains('open');
+  closeDropdowns();
+  if (!wasOpen) { drop.classList.add('open'); buildSmileContent(); }
+}
+
+function buildSmileContent() {
+  const el = document.getElementById('smileContent');
+  const score = profileData?.wellnessScore || 0;
+  const emoji = score >= 7 ? '😊' : score >= 4 ? '😐' : score > 0 ? '😔' : '😊';
+  const sessCompleted = sessionsData.filter(s => s.status === 'completed').length;
+  const hwDone = homeworkData.filter(h => h.isCompleted).length;
+  el.innerHTML = `
+    <div style="padding:18px;text-align:center;border-bottom:1px solid var(--border);">
+      <div style="font-size:46px;margin-bottom:4px;">${emoji}</div>
+      <div style="font-size:22px;font-weight:800;color:var(--primary);">${score ? score.toFixed(1) : '—'} <span style="font-size:14px;font-weight:400;color:var(--muted);">/ 10</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px;">Wellness Score</div>
+    </div>
+    <div style="display:flex;justify-content:space-around;padding:14px 18px;border-bottom:1px solid var(--border);">
+      <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--text);">${sessCompleted}</div><div style="font-size:11px;color:var(--muted);">Sessions Done</div></div>
+      <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--text);">${hwDone}</div><div style="font-size:11px;color:var(--muted);">HW Complete</div></div>
+      <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--text);">${sessionsData.length}</div><div style="font-size:11px;color:var(--muted);">Total Sessions</div></div>
+    </div>
+    <div style="padding:12px 18px;text-align:center;">
+      <a href="#" onclick="showPanel('story',null);closeDropdowns();" style="color:var(--primary);font-size:13px;font-weight:600;text-decoration:none;">⭐ Share my wellness story →</a>
+    </div>`;
+}
+
+// ─── Profile Photo ─────────────────────────────────────────────────────────────
+function previewPhoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const av = document.getElementById('pfAvatar');
+    av.innerHTML = `<img src="${e.target.result}" alt="Profile photo">`;
+    // Update sidebar avatar emoji
+    document.querySelector('.sb-av').textContent = '';
+    document.querySelector('.sb-av').style.backgroundImage = `url(${e.target.result})`;
+    document.querySelector('.sb-av').style.backgroundSize = 'cover';
+    // Save locally
+    try { localStorage.setItem('kv_photo', e.target.result); } catch(ex) {}
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+function loadSavedPhoto() {
+  try {
+    const photo = localStorage.getItem('kv_photo');
+    if (photo) {
+      const av = document.getElementById('pfAvatar');
+      if (av) av.innerHTML = `<img src="${photo}" alt="Profile photo">`;
+    }
+  } catch(ex) {}
 }
 
 async function submitStory() {

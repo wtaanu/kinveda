@@ -406,11 +406,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
         <div style="font-size:13px;color:var(--muted);margin-bottom:18px;">
           Clients see your rates before booking. KinVeda takes 0% — you set your own fees freely.
         </div>
-        <div class="fee-row"><label>Per 30 Minutes</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="fee30" placeholder="0"></div></div>
-        <div class="fee-row"><label>Per 60 Minutes</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="fee60" placeholder="0"></div></div>
-        <div class="fee-row"><label>Monthly Package (8 sessions)</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="feeMonthly" placeholder="0"></div></div>
-        <div style="margin-top:16px;background:#EEF7F5;border-radius:10px;padding:12px;font-size:12px;color:#1E5C51;">
-          💡 Your rates display to KinMembers as: ₹{30min}/30 min · ₹{60min}/hr on your public profile.
+        <div class="fee-row"><label>Per 30 Minutes</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="fee30" placeholder="0" min="0"></div></div>
+        <div class="fee-row"><label>Per 60 Minutes</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="fee60" placeholder="0" min="0"></div></div>
+        <div style="background:#F3F0FF;border-radius:10px;padding:16px;margin:14px 0;">
+          <h4 style="font-size:13px;font-weight:700;margin-bottom:12px;color:var(--pd);">📦 Monthly Care Package Definition</h4>
+          <div class="fee-row"><label>Monthly Price</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="feeMonthly" placeholder="0" min="0"></div></div>
+          <div class="fee-row"><label>Sessions per Month</label><div class="fee-inp"><input type="number" id="feePkgSessions" placeholder="8" min="1" max="31" style="width:90px;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:right;"><span style="font-size:13px;color:var(--muted);">sessions</span></div></div>
+          <div class="fee-row"><label>Minutes per Session</label><div class="fee-inp"><input type="number" id="feePkgMins" placeholder="50" min="30" max="120" style="width:90px;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:right;"><span style="font-size:13px;color:var(--muted);">min</span></div></div>
+          <div style="margin-top:10px;background:#EEF7F5;border-radius:8px;padding:10px 12px;font-size:12px;color:#1E5C51;">
+            These are shown to KinMembers on your public profile and on the package selection screen.
+          </div>
+        </div>
+        <div class="fee-row" style="border:none;">
+          <div style="background:#F3F0FF;border-radius:10px;padding:12px;font-size:12px;color:var(--pd);width:100%;">
+            💡 All defaults: <strong>Encrypted chat anytime · Crisis support + safety plan · Homework &amp; resource library</strong> are included in every package.
+          </div>
         </div>
       </div>
     </div>
@@ -478,8 +488,13 @@ const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sun
 document.addEventListener('DOMContentLoaded', async () => {
   userData = KV.requireAuth('kinmentor');
   if (!userData) return;
+
+  // Back-button triggers logout
+  history.pushState(null, '', window.location.href);
+  window.addEventListener('popstate', () => KV.signOut());
+
   document.getElementById('sbName').textContent = userData.name || 'KinMentor';
-  document.getElementById('welcomeName').textContent = `Good day, ${userData.name} 👋`;
+  document.getElementById('welcomeName').textContent = `Good day, ${userData.name || 'KinMentor'} 👋`;
   populateCopyMonthSelect();
   await Promise.all([loadDashboard(), loadMembers(), loadSessions(), loadReviews(), loadBlog()]);
   populateMemberDropdowns();
@@ -542,6 +557,8 @@ async function loadProfile() {
   document.getElementById('fee30').value = profileData.rate30min||0;
   document.getElementById('fee60').value = profileData.rate60min||0;
   document.getElementById('feeMonthly').value = profileData.rateMonthly||0;
+  document.getElementById('feePkgSessions').value = profileData.packageSessions||8;
+  document.getElementById('feePkgMins').value = profileData.packageMins||50;
   const vb = document.getElementById('verifiedBadge');
   if (profileData.isRciVerified && profileData.isPaymentVerified) {
     vb.textContent = '✅ RCI Verified · Payment Active';
@@ -549,10 +566,12 @@ async function loadProfile() {
     vb.textContent = '⏳ Pending Admin Verification';
   }
   // Fee overview
+  const sess = profileData.packageSessions || 8;
+  const mins = profileData.packageMins || 50;
   document.getElementById('feeOverview').innerHTML = `
     <div class="fee-row"><label>30 min</label><div class="fee-inp">₹${profileData.rate30min||0}</div></div>
     <div class="fee-row"><label>60 min</label><div class="fee-inp">₹${profileData.rate60min||0}</div></div>
-    <div class="fee-row"><label>Monthly Package</label><div class="fee-inp">₹${profileData.rateMonthly||0}</div></div>
+    <div class="fee-row"><label>Monthly Package</label><div class="fee-inp">₹${profileData.rateMonthly||0} / ${sess} sessions (${mins} min each)</div></div>
   `;
 }
 
@@ -787,20 +806,31 @@ async function loadAvailability() {
 
 async function saveAvailability() {
   const slots = [];
+  let hasError = false;
   for (let i = 0; i < 7; i++) {
     const container = document.getElementById('slots-' + i);
     container.querySelectorAll('.avail-slot').forEach(div => {
       const sid = div.id;
       const start = document.getElementById(sid+'-start')?.value;
-      const end = document.getElementById(sid+'-end')?.value;
+      const end   = document.getElementById(sid+'-end')?.value;
       const label = document.getElementById(sid+'-label')?.value?.trim();
-      if (start && end) slots.push({ dayOfWeek: i, startTime: start, endTime: end, label: label||'' });
+      if (start && end) {
+        const durationMins = timeToMins(end) - timeToMins(start);
+        if (durationMins < 60) {
+          KV.showToast(`Each availability slot must be at least 1 hour. Check ${DAYS[i]} slot.`, 'warning');
+          hasError = true;
+          return;
+        }
+        slots.push({ dayOfWeek: i, startTime: start, endTime: end, label: label || '' });
+      }
     });
+    if (hasError) break;
   }
+  if (hasError) return;
   const res = await KV.post('/api/kinmentor/availability/bulk', { slots });
   if (!res) return;
   const data = await res.json();
-  if (data.success) KV.showToast(`${slots.length} availability slots saved!`, 'success');
+  if (data.success) KV.showToast(`${slots.length} availability slot${slots.length !== 1 ? 's' : ''} saved!`, 'success');
   else KV.showToast(data.message || 'Save failed.', 'error');
 }
 
@@ -911,6 +941,65 @@ async function publishBlog(pub) {
   if (!title || !content) { KV.showToast('Please enter title and content.', 'warning'); return; }
   const res = await KV.post('/api/kinmentor/blog', { title, content, category, isPublished: pub });
   if (res?.ok) { KV.showToast(`Post ${pub?'published':'saved as draft'}!`, 'success'); document.getElementById('newBlogForm').style.display='none'; await loadBlog(); }
+}
+
+// ─── Profile Save ─────────────────────────────────────────────────────────────
+async function saveProfile() {
+  if (!profileData) { KV.showToast('Profile not loaded yet. Please wait.', 'warning'); return; }
+  const res = await KV.put('/api/kinmentor/profile', {
+    name:            document.getElementById('pf-name').value.trim(),
+    phone:           document.getElementById('pf-phone').value.trim(),
+    city:            document.getElementById('pf-city').value.trim(),
+    rciLicense:      document.getElementById('pf-rci').value.trim(),
+    qualification:   document.getElementById('pf-qual').value.trim(),
+    bio:             document.getElementById('pf-bio').value.trim(),
+    approach:        document.getElementById('pf-approach').value.trim(),
+    specializations: (document.getElementById('pf-tags').value||'').split(',').map(t=>t.trim()).filter(Boolean),
+    languages:       document.getElementById('pf-langs').value.trim(),
+    experienceYears: parseInt(document.getElementById('pf-exp').value) || 0,
+    rate30min:       parseFloat(document.getElementById('fee30').value) || 0,
+    rate60min:       parseFloat(document.getElementById('fee60').value) || 0,
+    rateMonthly:     parseFloat(document.getElementById('feeMonthly').value) || 0,
+    packageSessions: parseInt(document.getElementById('feePkgSessions').value) || 8,
+    packageMins:     parseInt(document.getElementById('feePkgMins').value) || 50
+  });
+  if (res?.ok) {
+    KV.showToast('Profile saved! 🌿', 'success');
+    await loadProfile();
+  } else {
+    KV.showToast('Could not save profile. Please try again.', 'error');
+  }
+}
+
+// ─── Fees Save ─────────────────────────────────────────────────────────────────
+async function saveFees() {
+  if (!profileData) { KV.showToast('Profile not loaded yet. Please wait.', 'warning'); return; }
+  const pkgSessions = parseInt(document.getElementById('feePkgSessions').value) || 8;
+  const pkgMins = parseInt(document.getElementById('feePkgMins').value) || 50;
+  if (pkgMins < 30) { KV.showToast('Minimum session length is 30 minutes.', 'warning'); return; }
+  const res = await KV.put('/api/kinmentor/profile', {
+    ...profileData,
+    name:            document.getElementById('pf-name').value || profileData.name,
+    rate30min:       parseFloat(document.getElementById('fee30').value) || 0,
+    rate60min:       parseFloat(document.getElementById('fee60').value) || 0,
+    rateMonthly:     parseFloat(document.getElementById('feeMonthly').value) || 0,
+    packageSessions: pkgSessions,
+    packageMins:     pkgMins,
+    specializations: profileData.specializations || []
+  });
+  if (res?.ok) {
+    KV.showToast('Rates & package saved! 🌿', 'success');
+    await loadProfile();
+  } else {
+    KV.showToast('Could not save. Please try again.', 'error');
+  }
+}
+
+// ─── Availability validation (min 1 hour) ────────────────────────────────────
+function timeToMins(t) {
+  if (!t) return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
 }
 
 // Load profile data for the forms

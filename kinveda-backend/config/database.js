@@ -424,7 +424,10 @@ function initializeSchema() {
     // Admin payout tracking
     "ALTER TABLE payouts ADD COLUMN payment_mode TEXT DEFAULT 'offline' CHECK(payment_mode IN ('offline','online'))",
     "ALTER TABLE payouts ADD COLUMN invoice_sent INTEGER DEFAULT 0",
-    "ALTER TABLE payouts ADD COLUMN week_label TEXT"
+    "ALTER TABLE payouts ADD COLUMN week_label TEXT",
+    // Mentor package definition
+    "ALTER TABLE kinmentor_profiles ADD COLUMN package_sessions_per_month INTEGER DEFAULT 8",
+    "ALTER TABLE kinmentor_profiles ADD COLUMN package_mins_per_session INTEGER DEFAULT 50"
   ];
   for (const sql of migrations) {
     try { database.exec(sql); } catch (e) { /* column already exists — skip */ }
