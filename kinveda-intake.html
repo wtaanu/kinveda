@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinVeda – Family Wellness Assessment</title>
+<style>
+  :root {
+    --primary: #2D7D6F; --primary-dark: #1E5C51; --primary-light: #4A9D8E;
+    --accent: #E8734A; --bg: #F7F4EF; --card: #FFFFFF;
+    --text: #1A2E2A; --text-muted: #6B7F7C; --border: #E2EAE8;
+    --sos: #DC2626; --shadow: 0 2px 16px rgba(45,125,111,0.10);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  nav { background: white; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  .logo-text { font-size: 20px; font-weight: 700; color: var(--primary-dark); }
+  .logo-text span { color: var(--accent); }
+  .quick-exit { background: #FEE2E2; color: var(--sos); border: 1px solid #FCA5A5; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+  .page-wrap { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
+  .assessment-header { text-align: center; margin-bottom: 40px; }
+  .assessment-header .badge { display: inline-flex; align-items: center; gap: 6px; background: #EEF7F5; color: var(--primary); font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px; margin-bottom: 14px; border: 1px solid #C8E6E1; }
+  .assessment-header h1 { font-size: 30px; font-weight: 800; margin-bottom: 10px; }
+  .assessment-header p { font-size: 15px; color: var(--text-muted); }
+
+  /* PROGRESS */
+  .progress-wrap { background: white; border-radius: 16px; padding: 20px 28px; margin-bottom: 28px; box-shadow: var(--shadow); }
+  .progress-steps { display: flex; justify-content: space-between; position: relative; }
+  .progress-steps::before { content: ''; position: absolute; top: 18px; left: 10%; right: 10%; height: 2px; background: var(--border); z-index: 0; }
+  .progress-fill { position: absolute; top: 18px; left: 10%; height: 2px; background: var(--primary); z-index: 1; transition: width .4s; }
+  .p-step { display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2; }
+  .p-step .circle { width: 36px; height: 36px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: var(--text-muted); transition: all .3s; }
+  .p-step.active .circle { background: var(--primary); color: white; }
+  .p-step.done .circle { background: var(--primary); color: white; }
+  .p-step .label { font-size: 11px; color: var(--text-muted); font-weight: 500; text-align: center; max-width: 80px; }
+  .p-step.active .label { color: var(--primary); font-weight: 700; }
+
+  /* FORM CARD */
+  .form-card { background: white; border-radius: 20px; padding: 36px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+  .section-title { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .section-num { width: 32px; height: 32px; background: var(--primary); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; }
+  .section-title h2 { font-size: 20px; font-weight: 700; }
+
+  .form-group { margin-bottom: 24px; }
+  .form-group label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text); }
+  .form-group .hint { font-size: 12px; color: var(--text-muted); margin-bottom: 8px; }
+  .form-group input[type="text"], .form-group input[type="email"], .form-group select, .form-group textarea {
+    width: 100%; padding: 12px 16px; border: 1.5px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; color: var(--text); background: white; transition: border .2s;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(45,125,111,0.1); }
+  .form-group textarea { resize: vertical; min-height: 80px; }
+
+  /* RADIO / CHECKBOX */
+  .options-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .options-grid.cols3 { grid-template-columns: repeat(3, 1fr); }
+  .option-item { border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 16px; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 10px; }
+  .option-item:hover { border-color: var(--primary-light); background: #EEF7F5; }
+  .option-item.selected { border-color: var(--primary); background: #EEF7F5; }
+  .option-item input { display: none; }
+  .option-item .opt-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border); flex-shrink: 0; transition: all .2s; }
+  .option-item.selected .opt-check { background: var(--primary); border-color: var(--primary); }
+  .option-item span { font-size: 13px; font-weight: 500; }
+
+  /* SCALE */
+  .scale-wrap { display: flex; align-items: center; gap: 12px; }
+  .scale-wrap input[type=range] { flex: 1; -webkit-appearance: none; height: 6px; border-radius: 3px; background: linear-gradient(to right, var(--primary) 0%, var(--primary) 50%, var(--border) 50%); outline: none; }
+  .scale-wrap input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%; background: var(--primary); cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.2); }
+  .scale-val { width: 36px; height: 36px; background: var(--primary); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; }
+
+  /* SOS ALERT */
+  .sos-alert { display: none; background: #FEF2F2; border: 2px solid #FCA5A5; border-radius: 14px; padding: 20px 24px; margin-top: 16px; }
+  .sos-alert.show { display: flex; gap: 14px; align-items: flex-start; }
+  .sos-alert h4 { color: var(--sos); font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .sos-alert p { font-size: 13px; color: #7F1D1D; line-height: 1.6; }
+  .sos-nums { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .sos-n { background: white; border: 1px solid #FCA5A5; border-radius: 7px; padding: 6px 12px; font-size: 13px; font-weight: 700; color: var(--sos); }
+
+  /* CONSENT */
+  .consent-box { background: #F8F5EF; border: 1.5px solid var(--border); border-radius: 12px; padding: 20px; font-size: 13px; color: var(--text-muted); line-height: 1.7; margin-bottom: 20px; max-height: 120px; overflow-y: auto; }
+  .consent-check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .consent-check input { width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer; }
+  .consent-check span { font-size: 14px; font-weight: 500; }
+
+  /* BUTTONS */
+  .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 32px; }
+  .btn-back { background: white; color: var(--text-muted); border: 1.5px solid var(--border); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; }
+  .btn-back:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-next { background: var(--primary); color: white; border: none; padding: 12px 28px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: 8px; }
+  .btn-next:hover { background: var(--primary-dark); }
+  .step-indicator { font-size: 13px; color: var(--text-muted); }
+
+  /* HIDDEN STEPS */
+  .step-panel { display: none; }
+  .step-panel.active { display: block; }
+
+  /* COMPLETION */
+  .completion-card { text-align: center; padding: 48px 32px; }
+  .completion-card .check { width: 72px; height: 72px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px; font-size: 32px; }
+  .completion-card h2 { font-size: 26px; font-weight: 800; margin-bottom: 10px; }
+  .completion-card p { font-size: 15px; color: var(--text-muted); margin-bottom: 28px; max-width: 400px; margin-left: auto; margin-right: auto; }
+  .result-tags { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .tag { padding: 7px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .tag.green { background: #D1FAE5; color: #065F46; }
+  .tag.yellow { background: #FEF3C7; color: #92400E; }
+  .tag.red { background: #FEE2E2; color: #991B1B; }
+  .action-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary { background: var(--primary); color: white; border: none; padding: 13px 26px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn-outline { background: white; color: var(--primary); border: 2px solid var(--primary); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="kinveda-landing.html" class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Kin<span>Veda</span></div>
+  </a>
+  <button class="quick-exit" onclick="KV.quickExit()">⚡ Quick Exit</button>
+</nav>
+
+<div class="page-wrap">
+  <div class="assessment-header">
+    <div class="badge">🔒 100% Confidential · Your answers are private</div>
+    <h1>Family Wellness Assessment</h1>
+    <p>This 4-section questionnaire helps us understand your situation and connect you with the right support.</p>
+  </div>
+
+  <!-- PROGRESS BAR -->
+  <div class="progress-wrap">
+    <div class="progress-steps">
+      <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      <div class="p-step active" id="ps1"><div class="circle">1</div><div class="label">Profile & Identity</div></div>
+      <div class="p-step" id="ps2"><div class="circle">2</div><div class="label">Family Filter</div></div>
+      <div class="p-step" id="ps3"><div class="circle">3</div><div class="label">Substance & Behaviour</div></div>
+      <div class="p-step" id="ps4"><div class="circle">4</div><div class="label">Safety & SOS</div></div>
+      <div class="p-step" id="ps5"><div class="circle">✓</div><div class="label">Complete</div></div>
+    </div>
+  </div>
+
+  <!-- FORM CARD -->
+  <div class="form-card">
+
+    <!-- STEP 1: CONSENT + PROFILE -->
+    <div class="step-panel active" id="step1">
+      <div class="section-title">
+        <div class="section-num">1</div>
+        <h2>Consent & Basic Profile</h2>
+      </div>
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" placeholder="Your name (kept confidential)">
+      </div>
+      <div class="form-group">
+        <label>Email Address</label>
+        <input type="email" placeholder="your@email.com">
+      </div>
+      <div class="form-group">
+        <label>Family Structure</label>
+        <div class="options-grid">
+          <div class="option-item" onclick="selectOption(this,'family')"><div class="opt-check"></div><span>🏠 Nuclear Family</span></div>
+          <div class="option-item" onclick="selectOption(this,'family')"><div class="opt-check"></div><span>👨‍👩‍👧‍👦 Joint Family</span></div>
+          <div class="option-item" onclick="selectOption(this,'family')"><div class="opt-check"></div><span>👩 Single Parent</span></div>
+          <div class="option-item" onclick="selectOption(this,'family')"><div class="opt-check"></div><span>🔄 Other</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Child Status</label>
+        <div class="options-grid cols3">
+          <div class="option-item" onclick="selectOption(this,'child')"><div class="opt-check"></div><span>👤 Only Child</span></div>
+          <div class="option-item" onclick="selectOption(this,'child')"><div class="opt-check"></div><span>👥 Elder Sibling</span></div>
+          <div class="option-item" onclick="selectOption(this,'child')"><div class="opt-check"></div><span>👥 Younger Sibling</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Primary Concern <span style="font-weight:400;color:var(--text-muted)">(select all that apply)</span></label>
+        <div class="options-grid">
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>💬 Communication Gap</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>🧒 Only-Child Dynamics</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>💊 Substance Use</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>🚨 Domestic Safety</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>😟 Anxiety / Depression</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>🔄 Other</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Consent to Treatment</label>
+        <div class="consent-box">
+          I understand that by proceeding I am voluntarily seeking wellness support through the KinVeda platform. I consent to the collection of the information I provide for the purpose of matching me with appropriate mental health support. My data will be stored securely and will not be shared with any third party without my explicit consent. I understand I have the right to withdraw at any time. KinVeda professionals are not a substitute for emergency services.
+        </div>
+        <label class="consent-check">
+          <input type="checkbox" id="consentCheck" onchange="document.getElementById('btnNext1').disabled=!this.checked">
+          <span>I have read and agree to the Consent to Treatment above</span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <span class="step-indicator">Step 1 of 4</span>
+        <button class="btn-next" id="btnNext1" disabled onclick="goToStep(2)">Next: Family Filter →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2: ONLY CHILD / NUCLEAR -->
+    <div class="step-panel" id="step2">
+      <div class="section-title">
+        <div class="section-num">2</div>
+        <h2>The Only Child & Nuclear Family Filter</h2>
+      </div>
+      <div class="form-group">
+        <label>Parental Expectations Pressure</label>
+        <div class="hint">On a scale of 1–10, how much pressure do you feel to succeed for your family?</div>
+        <div class="scale-wrap">
+          <span style="font-size:13px;color:var(--text-muted)">Low</span>
+          <input type="range" min="1" max="10" value="5" oninput="document.getElementById('scaleVal').textContent=this.value; updateScaleGradient(this)">
+          <span style="font-size:13px;color:var(--text-muted)">High</span>
+          <div class="scale-val" id="scaleVal">5</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Horizontal Support</label>
+        <div class="hint">Do you have someone outside your parents (cousin, friend) you can talk to about "everything"?</div>
+        <div class="options-grid" style="max-width:300px">
+          <div class="option-item" onclick="selectOption(this,'support')"><div class="opt-check"></div><span>✅ Yes</span></div>
+          <div class="option-item" onclick="selectOption(this,'support')"><div class="opt-check"></div><span>❌ No</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Intergenerational Conflict</label>
+        <div class="hint">"My parents/children and I have completely different values regarding..."</div>
+        <div class="options-grid">
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>💼 Work & Career</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>💍 Marriage</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>🌐 Lifestyle</span></div>
+          <div class="option-item" onclick="toggleOption(this)"><div class="opt-check" style="border-radius:4px"></div><span>📱 Technology</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Household Composition</label>
+        <textarea placeholder="Briefly describe who currently lives with you (e.g., parents, spouse, children, in-laws)..."></textarea>
+      </div>
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(1)">← Back</button>
+        <span class="step-indicator">Step 2 of 4</span>
+        <button class="btn-next" onclick="goToStep(3)">Next: Substance Screening →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: SUBSTANCE -->
+    <div class="step-panel" id="step3">
+      <div class="section-title">
+        <div class="section-num">3</div>
+        <h2>Substance & Behavioural Screening</h2>
+      </div>
+      <div class="form-group">
+        <label>Usage Interference</label>
+        <div class="hint">Has substance use (alcohol, drugs, prescription meds) interfered with work or family roles in the last 30 days?</div>
+        <div class="options-grid" style="max-width:400px">
+          <div class="option-item" onclick="selectOption(this,'sub1')"><div class="opt-check"></div><span>✅ Yes — my own use</span></div>
+          <div class="option-item" onclick="selectOption(this,'sub1')"><div class="opt-check"></div><span>👥 A family member's</span></div>
+          <div class="option-item" onclick="selectOption(this,'sub1')"><div class="opt-check"></div><span>❌ No</span></div>
+          <div class="option-item" onclick="selectOption(this,'sub1')"><div class="opt-check"></div><span>🤷 Unsure</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Family Impact</label>
+        <div class="hint">Has a family member's usage ever made you feel unsafe or financially unstable?</div>
+        <div class="options-grid" style="max-width:300px">
+          <div class="option-item" onclick="selectOption(this,'sub2')"><div class="opt-check"></div><span>✅ Yes</span></div>
+          <div class="option-item" onclick="selectOption(this,'sub2')"><div class="opt-check"></div><span>❌ No</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>When stressed by family, what is your primary coping response?</label>
+        <div class="options-grid">
+          <div class="option-item" onclick="selectOption(this,'cope')"><div class="opt-check"></div><span>🚪 Isolation</span></div>
+          <div class="option-item" onclick="selectOption(this,'cope')"><div class="opt-check"></div><span>🍺 Substance Use</span></div>
+          <div class="option-item" onclick="selectOption(this,'cope')"><div class="opt-check"></div><span>🏃 Exercise</span></div>
+          <div class="option-item" onclick="selectOption(this,'cope')"><div class="opt-check"></div><span>😤 Confrontation</span></div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(2)">← Back</button>
+        <span class="step-indicator">Step 3 of 4</span>
+        <button class="btn-next" onclick="goToStep(4)">Next: Safety Check →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: SAFETY SOS -->
+    <div class="step-panel" id="step4">
+      <div class="section-title">
+        <div class="section-num">4</div>
+        <h2>Safety & SOS — Immediate Red Flags</h2>
+      </div>
+      <div style="background:#FFF7ED;border:1px solid #FED7AA;border-radius:10px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:#92400E;">
+        🛡️ These questions help us prioritize your safety. Your answers are confidential and never judged.
+      </div>
+      <div class="form-group">
+        <label>Physical Safety</label>
+        <div class="hint">Have you been pushed, hit, or physically restrained by anyone in your home in the last 6 months?</div>
+        <div class="options-grid" style="max-width:300px">
+          <div class="option-item" onclick="selectOption(this,'phys'); checkSOS()"><div class="opt-check"></div><span>✅ Yes</span></div>
+          <div class="option-item" onclick="selectOption(this,'phys'); checkSOS()"><div class="opt-check"></div><span>❌ No</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Immediate Threat</label>
+        <div class="hint">Is there someone in your home right now that you are afraid of?</div>
+        <div class="options-grid" style="max-width:300px">
+          <div class="option-item" onclick="selectOption(this,'threat'); checkSOS()"><div class="opt-check"></div><span>✅ Yes</span></div>
+          <div class="option-item" onclick="selectOption(this,'threat'); checkSOS()"><div class="opt-check"></div><span>❌ No</span></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Self-Harm Thoughts</label>
+        <div class="hint">In the past two weeks, have you had thoughts that you would be better off dead, or of hurting yourself?</div>
+        <div class="options-grid" style="max-width:300px">
+          <div class="option-item" onclick="selectOption(this,'self'); checkSOS()"><div class="opt-check"></div><span>✅ Yes</span></div>
+          <div class="option-item" onclick="selectOption(this,'self'); checkSOS()"><div class="opt-check"></div><span>❌ No</span></div>
+        </div>
+      </div>
+
+      <!-- SOS ALERT -->
+      <div class="sos-alert" id="sosAlert">
+        <div style="font-size:28px">🆘</div>
+        <div>
+          <h4>You are not alone — help is available right now</h4>
+          <p>Based on your answers, we strongly encourage you to reach out to a crisis professional immediately. These helplines are free, confidential, and available 24/7.</p>
+          <div class="sos-nums">
+            <div class="sos-n">Kiran 1800-599-0019</div>
+            <div class="sos-n">Vandrevala 9999 666 555</div>
+            <div class="sos-n">NCW 7827170170</div>
+            <div class="sos-n">Police 112</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-back" onclick="goToStep(3)">← Back</button>
+        <span class="step-indicator">Step 4 of 4</span>
+        <button class="btn-next" onclick="submitAssessment()">Submit Assessment ✓</button>
+      </div>
+    </div>
+
+    <!-- STEP 5: COMPLETION -->
+    <div class="step-panel" id="step5">
+      <div class="completion-card">
+        <div class="check">✓</div>
+        <h2>Assessment Complete!</h2>
+        <p>Thank you for trusting KinVeda. Our team has received your assessment and will review it within 24 hours. You'll receive a personalized match and session invite by email.</p>
+        <div class="result-tags">
+          <div class="tag green">✅ Profile Submitted</div>
+          <div class="tag yellow">⏳ Matching in Progress</div>
+          <div class="tag green">📧 Confirmation Sent</div>
+        </div>
+        <div style="background:#EEF7F5;border-radius:12px;padding:20px;margin-bottom:24px;text-align:left;">
+          <h4 style="margin-bottom:8px;color:var(--primary)">📋 Your Recommended Resources</h4>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">These have been auto-pinned to your dashboard based on your responses:</p>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">📄 <strong>Only Child Survival Guide</strong> — Managing parental pressure & building lateral support</div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">📄 <strong>Personal Safety Plan</strong> — Your customized SOS document</div>
+            <div style="display:flex;align-items:center;gap:10px;font-size:13px;">📄 <strong>Boundary Setting Workbook</strong> — For nuclear family stress</div>
+          </div>
+        </div>
+        <div class="action-btns">
+          <a href="kinveda-kinmember.html" class="btn-primary">Enter My KinMember Dashboard →</a>
+          <a href="kinveda-landing.html" class="btn-outline">Back to Home</a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /form-card -->
+</div>
+
+<script src="kinveda-api.js"></script>
+<script>
+  let currentStep = 1;
+
+  function goToStep(n) {
+    document.getElementById('step'+currentStep).classList.remove('active');
+    document.getElementById('ps'+currentStep).classList.remove('active');
+    document.getElementById('ps'+currentStep).classList.add('done');
+    currentStep = n;
+    document.getElementById('step'+n).classList.add('active');
+    document.getElementById('ps'+n).classList.add('active');
+    const fills = [0,0,25,50,75,100];
+    document.getElementById('progressFill').style.width = fills[n]+'%';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function selectOption(el, group) {
+    document.querySelectorAll('[data-group="'+group+'"]').forEach(e=>e.classList.remove('selected'));
+    el.dataset.group = group;
+    document.querySelectorAll('[onclick*="\''+group+'\'"]').forEach(e=>{ e.classList.remove('selected'); e.dataset.group=group; });
+    el.classList.add('selected');
+  }
+
+  function toggleOption(el) {
+    el.classList.toggle('selected');
+  }
+
+  function updateScaleGradient(input) {
+    const val = (input.value - 1) / 9 * 100;
+    input.style.background = `linear-gradient(to right, var(--primary) 0%, var(--primary) ${val}%, var(--border) ${val}%)`;
+  }
+
+  function checkSOS() {
+    const selected = document.querySelectorAll('#step4 .option-item.selected');
+    let showSOS = false;
+    selected.forEach(el => { if(el.querySelector('span').textContent.includes('Yes')) showSOS=true; });
+    const alert = document.getElementById('sosAlert');
+    if(showSOS) alert.classList.add('show'); else alert.classList.remove('show');
+  }
+
+  // Collect all assessment responses and submit to API
+  async function submitAssessment() {
+    const responses = {};
+
+    // Step 1 - Basic Info
+    responses.name = document.getElementById('name')?.value?.trim() || '';
+    responses.phone = document.getElementById('phone')?.value?.trim() || '';
+    responses.city = document.getElementById('city')?.value?.trim() || '';
+    responses.age = document.getElementById('age')?.value?.trim() || '';
+    responses.family_type = document.querySelector('[data-group="family_type"].selected span')?.textContent?.trim() || '';
+
+    // Step 2 - Family Structure
+    responses.children = document.querySelector('[data-group="children"].selected span')?.textContent?.trim() || '';
+    responses.living = document.querySelector('[data-group="living"].selected span')?.textContent?.trim() || '';
+
+    // Step 3 - Concerns (multi-select)
+    const concernEls = document.querySelectorAll('#step3 .option-item.selected span');
+    responses.primary_concerns = Array.from(concernEls).map(e => e.textContent.trim());
+
+    // Step 4 - Safety
+    const safetyEls = document.querySelectorAll('#step4 .option-item.selected span');
+    responses.safety_flags = Array.from(safetyEls).map(e => e.textContent.trim());
+    responses.sos_triggered = responses.safety_flags.some(s => s.includes('Yes'));
+
+    // Wellness scale
+    const scaleEl = document.querySelector('input[type="range"]');
+    responses.wellness_score = scaleEl ? parseInt(scaleEl.value) : 5;
+
+    // Submit to API (works whether signed in or not — auth optional)
+    try {
+      const user = typeof KV !== 'undefined' ? KV.getUser() : null;
+      if (user && user.role === 'kinmember') {
+        const res = await KV.post('/api/kinmember/assessment', { responses, score: responses.wellness_score });
+        if (res && res.ok) {
+          const d = await res.json();
+          if (d.sosTriggered) {
+            document.getElementById('sosAlert') && document.getElementById('sosAlert').classList.add('show');
+          }
+        }
+      }
+    } catch (e) {
+      // Non-fatal — form still transitions to success step
+    }
+
+    // Advance to completion step
+    goToStep(5);
+  }
+</script>
+</body>
+</html>

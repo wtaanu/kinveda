@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinMentor Profile – KinVeda</title>
+<style>
+  :root {
+    --primary: #2D7D6F; --primary-dark: #1E5C51; --primary-light: #4A9D8E;
+    --accent: #E8734A; --bg: #F7F4EF; --card: #FFFFFF;
+    --text: #1A2E2A; --text-muted: #6B7F7C; --border: #E2EAE8;
+    --shadow: 0 2px 16px rgba(45,125,111,0.10);
+    --shadow-lg: 0 8px 32px rgba(45,125,111,0.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+  /* NAV */
+  nav { background: white; border-bottom: 1px solid var(--border); padding: 0 40px; display: flex; align-items: center; justify-content: space-between; height: 64px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--primary-light)); border-radius: 9px; display: flex; align-items: center; justify-content: center; color: white; font-size: 18px; }
+  .logo-text { font-size: 20px; font-weight: 700; color: var(--primary-dark); }
+  .logo-text span { color: var(--accent); }
+  .nav-links { display: flex; gap: 10px; align-items: center; }
+  .nav-links a { text-decoration: none; color: var(--text-muted); padding: 8px 14px; border-radius: 8px; font-size: 14px; font-weight: 500; transition: all .2s; }
+  .nav-links a:hover { color: var(--primary); background: #EEF7F5; }
+  .btn-primary { background: var(--primary); color: white !important; border-radius: 8px; }
+  .btn-primary:hover { background: var(--primary-dark) !important; }
+
+  /* HERO */
+  .hero-section { background: white; }
+  .hero-inner { max-width: 1100px; margin: 0 auto; padding: 50px 40px; display: grid; grid-template-columns: 300px 1fr; gap: 48px; align-items: start; }
+  .profile-photo { width: 280px; height: 320px; border-radius: 20px; background: linear-gradient(135deg, #EEF7F5, #C8E6E1); display: flex; align-items: center; justify-content: center; font-size: 80px; box-shadow: var(--shadow-lg); flex-shrink: 0; }
+  .profile-info { padding-top: 8px; }
+  .verified-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .verified-badge { display: inline-flex; align-items: center; gap: 5px; background: #D1FAE5; color: #065F46; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+  .rci-badge { display: inline-flex; align-items: center; gap: 5px; background: #EEF7F5; color: var(--primary); padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; border: 1px solid var(--border); }
+  .profile-info h1 { font-size: 34px; font-weight: 800; margin-bottom: 6px; }
+  .profile-info .role { font-size: 16px; color: var(--text-muted); margin-bottom: 16px; font-weight: 500; }
+  .stars-row { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; }
+  .stars { color: #F59E0B; font-size: 18px; }
+  .rating-text { font-size: 15px; font-weight: 700; }
+  .review-count { font-size: 14px; color: var(--text-muted); }
+  .tagcloud { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
+  .tag { padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; }
+  .tag.t1 { background: #EEF7F5; color: var(--primary); }
+  .tag.t2 { background: #F3F0FF; color: #5A4F8A; }
+  .tag.t3 { background: #FFF7ED; color: #92400E; }
+  .fee-row-inline { display: flex; gap: 20px; margin-bottom: 24px; flex-wrap: wrap; }
+  .fee-box { background: var(--bg); border-radius: 10px; padding: 12px 18px; }
+  .fee-box .fee-lbl { font-size: 11px; color: var(--text-muted); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .fee-box .fee-val { font-size: 20px; font-weight: 800; color: var(--text); }
+  .cta-btns { display: flex; gap: 12px; flex-wrap: wrap; }
+  .btn-book { background: var(--primary); color: white; border: none; padding: 13px 28px; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; transition: all .2s; box-shadow: 0 4px 14px rgba(45,125,111,0.3); }
+  .btn-book:hover { background: var(--primary-dark); transform: translateY(-1px); }
+  .btn-chat { background: white; color: var(--primary); border: 2px solid var(--primary); padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; }
+  .btn-chat:hover { background: #EEF7F5; }
+
+  /* CONTENT */
+  .content-section { max-width: 1100px; margin: 0 auto; padding: 40px; display: grid; grid-template-columns: 1fr 320px; gap: 32px; }
+  .main-col { }
+  .side-col { }
+
+  /* ABOUT SECTION */
+  .about-card { background: white; border-radius: 18px; padding: 32px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 24px; }
+  .about-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .about-card p { font-size: 15px; color: var(--text-muted); line-height: 1.8; margin-bottom: 16px; }
+  .about-card .quote { font-style: italic; font-size: 16px; color: var(--primary-dark); background: #EEF7F5; border-left: 4px solid var(--primary); border-radius: 0 10px 10px 0; padding: 14px 18px; margin: 20px 0; }
+
+  /* APPROACH */
+  .approach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+  .approach-item { background: var(--bg); border-radius: 12px; padding: 16px; }
+  .approach-item .a-icon { font-size: 22px; margin-bottom: 8px; }
+  .approach-item h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .approach-item p { font-size: 12px; color: var(--text-muted); }
+
+  /* BLOG */
+  .blog-card { background: white; border-radius: 14px; padding: 24px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 16px; cursor: pointer; transition: all .2s; }
+  .blog-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+  .blog-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .blog-cat { background: #EEF7F5; color: var(--primary); padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+  .blog-date { font-size: 11px; color: var(--text-muted); }
+  .blog-card h3 { font-size: 17px; font-weight: 700; margin-bottom: 8px; }
+  .blog-card p { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+  .blog-card .read-more { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 10px; display: inline-block; }
+
+  /* SIDEBAR */
+  .side-card { background: white; border-radius: 16px; padding: 22px; box-shadow: var(--shadow); border: 1px solid var(--border); margin-bottom: 20px; }
+  .side-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
+  .cred-item { display: flex; gap: 10px; margin-bottom: 12px; align-items: flex-start; }
+  .cred-icon { font-size: 20px; }
+  .cred-info h4 { font-size: 13px; font-weight: 700; margin-bottom: 2px; }
+  .cred-info p { font-size: 12px; color: var(--text-muted); }
+
+  /* AVAILABILITY */
+  .avail-slot { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .avail-slot:last-child { border: none; }
+  .avail-slot .day { font-weight: 600; }
+  .avail-slot .time { color: var(--text-muted); }
+  .avail-dot { width: 8px; height: 8px; border-radius: 50%; background: #10B981; }
+
+  /* REVIEWS */
+  .review-item { padding: 14px; background: var(--bg); border-radius: 12px; margin-bottom: 12px; }
+  .rev-stars { font-size: 14px; margin-bottom: 4px; }
+  .rev-text { font-size: 13px; color: var(--text-muted); line-height: 1.6; margin-bottom: 4px; }
+  .rev-from { font-size: 11px; color: var(--primary); font-weight: 700; }
+
+  /* FLOATING CTA */
+  .float-cta { position: fixed; bottom: 24px; right: 24px; background: var(--primary); color: white; padding: 14px 24px; border-radius: 50px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 20px rgba(45,125,111,0.4); cursor: pointer; border: none; display: flex; align-items: center; gap: 8px; z-index: 200; transition: all .2s; }
+  .float-cta:hover { background: var(--primary-dark); transform: translateY(-2px); }
+
+  /* LOADING SKELETON */
+  .skeleton { background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 30px; color: var(--text-muted); font-size: 14px; }
+
+  @media (max-width: 768px) {
+    .hero-inner { grid-template-columns: 1fr; }
+    .profile-photo { width: 100%; height: 220px; }
+    .content-section { grid-template-columns: 1fr; }
+    nav { padding: 0 16px; }
+    .hero-inner { padding: 30px 20px; }
+    .content-section { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="kinveda-landing.html" class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Kin<span>Veda</span></div>
+  </a>
+  <div class="nav-links">
+    <a href="kinveda-landing.html">← All KinMentors</a>
+    <a href="kinveda-intake.html" class="btn-primary">Start Assessment →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero-section">
+  <div class="hero-inner">
+    <div class="profile-photo" id="profilePhoto">👩‍⚕️</div>
+    <div class="profile-info">
+      <div class="verified-row" id="badgeRow">
+        <span class="verified-badge">✅ Verified KinMentor</span>
+        <span class="rci-badge" id="rciBadge" style="display:none;">🎓 RCI Registered</span>
+        <span class="rci-badge" id="payBadge" style="display:none;">💳 Payment Verified</span>
+      </div>
+      <h1 id="mentorName">Loading…</h1>
+      <div class="role" id="mentorRole">KinMentor · KinVeda</div>
+      <div class="stars-row" id="starsRow">
+        <span class="stars">★★★★★</span>
+        <span class="rating-text" id="ratingVal">—</span>
+        <span class="review-count" id="reviewCount"></span>
+      </div>
+      <div class="tagcloud" id="tagCloud"></div>
+      <div class="fee-row-inline" id="feeRow">
+        <div class="fee-box">
+          <div class="fee-lbl">30 Min Session</div>
+          <div class="fee-val" id="fee30">—</div>
+        </div>
+        <div class="fee-box">
+          <div class="fee-lbl">60 Min Session</div>
+          <div class="fee-val" id="fee60">—</div>
+        </div>
+        <div class="fee-box">
+          <div class="fee-lbl">Monthly Package</div>
+          <div class="fee-val" id="feeMonthly">—</div>
+          <div style="font-size:11px;color:var(--text-muted);">8 sessions / bi-weekly</div>
+        </div>
+      </div>
+      <div class="cta-btns">
+        <button class="btn-book" onclick="bookSession()">📅 Book a Session</button>
+        <button class="btn-chat" onclick="KV.toggleChat()">💬 Chat with KinVeda</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="content-section">
+  <!-- MAIN -->
+  <div class="main-col">
+
+    <!-- ABOUT -->
+    <div class="about-card" id="aboutCard">
+      <h2>👋 About This KinMentor</h2>
+      <div class="quote" id="mentorQuote" style="display:none;"></div>
+      <p id="mentorBio" style="color:var(--text-muted);">Loading profile…</p>
+      <p id="mentorApproachText" style="display:none;"></p>
+    </div>
+
+    <!-- MY APPROACH -->
+    <div class="about-card">
+      <h2>🧠 Therapeutic Approach</h2>
+      <p>This KinMentor uses evidence-based methods tailored to each family's unique dynamics. Approaches typically include:</p>
+      <div class="approach-grid" id="approachGrid">
+        <div class="approach-item">
+          <div class="a-icon">🔍</div>
+          <h4>Cognitive Behavioral Therapy (CBT)</h4>
+          <p>Identifying and challenging core beliefs that drive conflict and anxiety in family relationships.</p>
+        </div>
+        <div class="approach-item">
+          <div class="a-icon">🌿</div>
+          <h4>Validation Over Advice</h4>
+          <p>Listening deeply before offering solutions, so you feel genuinely heard in every session.</p>
+        </div>
+        <div class="approach-item">
+          <div class="a-icon">🧬</div>
+          <h4>Family Systems Mapping</h4>
+          <p>Using genograms to map multi-generational patterns and break cycles — not just manage symptoms.</p>
+        </div>
+        <div class="approach-item">
+          <div class="a-icon">📋</div>
+          <h4>Practical Homework</h4>
+          <p>Structured exercises — boundary scripts, journaling prompts, and "third space" activities — between sessions.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BLOG POSTS -->
+    <div class="about-card">
+      <h2>📝 Wellness Reflections</h2>
+      <div id="blogContainer">
+        <div class="empty-state">Loading posts…</div>
+      </div>
+    </div>
+
+    <!-- REVIEWS -->
+    <div class="about-card">
+      <h2>⭐ KinMember Reviews</h2>
+      <div id="reviewsContainer">
+        <div class="empty-state">Loading reviews…</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="side-col">
+    <div class="side-card">
+      <h3>🎓 Credentials</h3>
+      <div id="credentialsList">
+        <div class="cred-item">
+          <div class="cred-icon">📜</div>
+          <div class="cred-info">
+            <h4>RCI License</h4>
+            <p id="rciLicense">Loading…</p>
+          </div>
+        </div>
+        <div class="cred-item">
+          <div class="cred-icon">🌐</div>
+          <div class="cred-info">
+            <h4>Languages</h4>
+            <p>Hindi · English</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-card">
+      <h3>📅 Availability</h3>
+      <div id="availabilityList">
+        <div class="empty-state" style="padding:10px 0;">Loading schedule…</div>
+      </div>
+      <button class="btn-book" style="width:100%;margin-top:16px;" onclick="bookSession()">Book Now →</button>
+    </div>
+
+    <div class="side-card" style="background:linear-gradient(135deg,#EEF7F5,#D4EDE8);border-color:var(--primary-light);">
+      <h3 style="color:var(--primary-dark);">📦 Monthly Care Package</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">8 bi-weekly sessions + unlimited chat + PDF resources</p>
+      <div style="font-size:26px;font-weight:800;color:var(--primary-dark);margin-bottom:14px;" id="packagePrice">₹—<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> / month</span></div>
+      <button class="btn-book" style="width:100%;" onclick="bookSession()">Get Package →</button>
+    </div>
+
+    <div class="side-card" style="background:#FEF2F2;border-color:#FCA5A5;">
+      <h3 style="color:#991B1B;">🆘 Need Immediate Help?</h3>
+      <p style="font-size:13px;color:#7F1D1D;line-height:1.7;">
+        iCall: <strong>9152987821</strong><br>
+        Vandrevala: <strong>1860-2662-345</strong><br>
+        NIMHANS: <strong>080-46110007</strong>
+      </p>
+      <button onclick="KV.quickExit()" style="margin-top:12px;width:100%;background:#DC2626;color:white;border:none;padding:8px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">⚡ Quick Exit</button>
+    </div>
+  </div>
+</div>
+
+<!-- FLOATING CTA -->
+<button class="float-cta" id="floatCta" onclick="bookSession()">
+  📅 Book a Session
+</button>
+
+<script src="kinveda-api.js"></script>
+<script>
+  // Get mentor ID from URL ?id=123
+  const urlParams = new URLSearchParams(window.location.search);
+  const mentorId = urlParams.get('id');
+
+  function starsHtml(rating) {
+    const full = Math.floor(rating);
+    const half = rating % 1 >= 0.5;
+    let s = '★'.repeat(full);
+    if (half) s += '½';
+    s += '☆'.repeat(5 - Math.ceil(rating));
+    return s;
+  }
+
+  function bookSession() {
+    if (mentorId) {
+      window.location.href = `kinveda-intake.html?mentor=${mentorId}`;
+    } else {
+      window.location.href = 'kinveda-intake.html';
+    }
+  }
+
+  async function loadProfile() {
+    if (!mentorId) {
+      // Fallback: show demo profile (for direct access without ?id=)
+      showDemoProfile();
+      return;
+    }
+
+    try {
+      const res = await KV.get(`/api/kinmentor/public/${mentorId}`);
+      if (!res || !res.ok) { showDemoProfile(); return; }
+      const data = await res.json();
+      if (!data.success) { showDemoProfile(); return; }
+
+      const p = data.profile;
+
+      // Name & title
+      document.title = `${p.name} – KinVeda KinMentor`;
+      document.getElementById('mentorName').textContent = p.name;
+      document.getElementById('mentorRole').textContent =
+        `KinMentor · ${p.experience_years || ''} Years Experience`;
+      document.getElementById('floatCta').textContent = `📅 Book with ${p.name.split(' ')[0]}`;
+
+      // Badges
+      if (p.is_rci_verified) document.getElementById('rciBadge').style.display = 'inline-flex';
+      if (p.is_payment_verified) document.getElementById('payBadge').style.display = 'inline-flex';
+
+      // Rating
+      if (p.avg_rating) {
+        document.getElementById('ratingVal').textContent = parseFloat(p.avg_rating).toFixed(1);
+        document.getElementById('starsRow').querySelector('.stars').textContent = starsHtml(p.avg_rating);
+        document.getElementById('reviewCount').textContent = `(${p.review_count || 0} verified reviews)`;
+      }
+
+      // Specializations as tags
+      const tagCloud = document.getElementById('tagCloud');
+      tagCloud.innerHTML = '';
+      const specs = p.specializations || [];
+      const tagClasses = ['t1','t2','t3'];
+      specs.forEach((s, i) => {
+        const span = document.createElement('span');
+        span.className = `tag ${tagClasses[i % 3]}`;
+        span.textContent = `#${s.replace(/\s+/g, '')}`;
+        tagCloud.appendChild(span);
+      });
+
+      // Fees
+      if (p.fee_30min) document.getElementById('fee30').textContent = `₹${p.fee_30min.toLocaleString('en-IN')}`;
+      if (p.fee_60min) document.getElementById('fee60').textContent = `₹${p.fee_60min.toLocaleString('en-IN')}`;
+      if (p.fee_monthly) {
+        document.getElementById('feeMonthly').textContent = `₹${p.fee_monthly.toLocaleString('en-IN')}`;
+        document.getElementById('packagePrice').innerHTML = `₹${p.fee_monthly.toLocaleString('en-IN')}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> / month</span>`;
+      }
+
+      // Bio
+      if (p.bio) {
+        document.getElementById('mentorBio').textContent = p.bio;
+        document.getElementById('aboutCard').querySelector('h2').textContent = `👋 About ${p.name}`;
+      }
+      if (p.approach) {
+        const quoteEl = document.getElementById('mentorQuote');
+        quoteEl.textContent = p.approach;
+        quoteEl.style.display = 'block';
+      }
+
+      // RCI license
+      if (p.rci_license) document.getElementById('rciLicense').textContent = `#${p.rci_license}`;
+
+      // Availability
+      if (p.availability) {
+        try {
+          const avail = typeof p.availability === 'string' ? JSON.parse(p.availability) : p.availability;
+          const container = document.getElementById('availabilityList');
+          container.innerHTML = '';
+          Object.entries(avail).forEach(([day, time]) => {
+            container.innerHTML += `
+              <div class="avail-slot">
+                <span class="day">${day}</span>
+                <span class="time">${time}</span>
+                <div class="avail-dot"></div>
+              </div>`;
+          });
+        } catch {}
+      }
+
+      // Blog posts
+      if (p.blog_posts && p.blog_posts.length > 0) {
+        const blogContainer = document.getElementById('blogContainer');
+        blogContainer.innerHTML = '';
+        p.blog_posts.slice(0, 3).forEach(post => {
+          const d = new Date(post.published_at * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
+          blogContainer.innerHTML += `
+            <div class="blog-card">
+              <div class="blog-meta">
+                <span class="blog-cat">${post.category || 'Wellness'}</span>
+                <span class="blog-date">${d}</span>
+              </div>
+              <h3>${post.title}</h3>
+              <p>${post.excerpt || (post.content || '').slice(0, 160)}…</p>
+              <span class="read-more">Read more →</span>
+            </div>`;
+        });
+      } else {
+        document.getElementById('blogContainer').innerHTML = '<div class="empty-state">No posts yet.</div>';
+      }
+
+      // Reviews
+      if (p.reviews && p.reviews.length > 0) {
+        const reviewsContainer = document.getElementById('reviewsContainer');
+        reviewsContainer.innerHTML = '';
+        p.reviews.forEach(r => {
+          reviewsContainer.innerHTML += `
+            <div class="review-item">
+              <div class="rev-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5 - r.rating)}</div>
+              <div class="rev-text">"${r.comment || 'Great experience with this KinMentor.'}"</div>
+              <div class="rev-from">— KinMember · ${r.concern || 'Family Wellness'}</div>
+            </div>`;
+        });
+      } else {
+        document.getElementById('reviewsContainer').innerHTML = '<div class="empty-state">No reviews yet — be the first to share your experience!</div>';
+      }
+
+    } catch (err) {
+      showDemoProfile();
+    }
+  }
+
+  function showDemoProfile() {
+    document.getElementById('mentorName').textContent = 'Dr. Ananya Mehta';
+    document.getElementById('mentorRole').textContent = 'Clinical Psychologist · CBT Specialist · 9 Years Experience';
+    document.getElementById('rciBadge').style.display = 'inline-flex';
+    document.getElementById('payBadge').style.display = 'inline-flex';
+    document.getElementById('ratingVal').textContent = '4.9';
+    document.getElementById('reviewCount').textContent = '(42 verified reviews)';
+    document.getElementById('fee30').textContent = '₹700';
+    document.getElementById('fee60').textContent = '₹1,200';
+    document.getElementById('feeMonthly').textContent = '₹8,000';
+    document.getElementById('packagePrice').innerHTML = '₹8,000<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> / month</span>';
+    document.getElementById('floatCta').textContent = '📅 Book with Dr. Mehta';
+    document.getElementById('rciLicense').textContent = '#A-23814 · Valid 2026';
+
+    const tagCloud = document.getElementById('tagCloud');
+    tagCloud.innerHTML = `
+      <span class="tag t1">#NuclearFamily</span>
+      <span class="tag t1">#OnlyChildDynamics</span>
+      <span class="tag t2">#Anxiety</span>
+      <span class="tag t2">#ParentalPressure</span>
+      <span class="tag t3">#GenerationGap</span>
+      <span class="tag t3">#BoundaryWork</span>`;
+
+    document.getElementById('mentorBio').innerHTML = `
+      <p style="margin-bottom:12px;">I'm a Clinical Psychologist with 9 years of experience working specifically with nuclear and only-child family systems in urban India. I completed my M.Phil in Clinical Psychology from NIMHANS, Bangalore, and hold RCI registration.</p>
+      <p>My practice is rooted in Cognitive Behavioral Therapy (CBT), with a strong understanding of India's unique generational pressure dynamics — particularly the "only child trap" where 100% of parental hopes and anxieties land on a single child.</p>`;
+
+    const quoteEl = document.getElementById('mentorQuote');
+    quoteEl.textContent = '"I believe that the family is not just a context — it is the client. My work helps individuals untangle themselves from unhealthy family patterns, while building new, healthier bonds."';
+    quoteEl.style.display = 'block';
+
+    document.getElementById('availabilityList').innerHTML = `
+      <div class="avail-slot"><span class="day">Monday</span><span class="time">6 PM – 9 PM</span><div class="avail-dot"></div></div>
+      <div class="avail-slot"><span class="day">Wednesday</span><span class="time">5 PM – 9 PM</span><div class="avail-dot"></div></div>
+      <div class="avail-slot"><span class="day">Thursday</span><span class="time">5 PM – 9 PM</span><div class="avail-dot"></div></div>
+      <div class="avail-slot"><span class="day">Saturday</span><span class="time">10 AM – 2 PM</span><div class="avail-dot"></div></div>`;
+
+    document.getElementById('blogContainer').innerHTML = `
+      <div class="blog-card">
+        <div class="blog-meta"><span class="blog-cat">Only Child</span><span class="blog-date">March 22, 2026</span></div>
+        <h3>3 Ways to Set Boundaries in a Nuclear Family Without Feeling Guilty</h3>
+        <p>In Indian nuclear families, boundaries are often seen as a form of rejection. But setting a limit isn't abandoning your family — it's protecting the relationship from burning out…</p>
+        <span class="read-more">Read more →</span>
+      </div>
+      <div class="blog-card">
+        <div class="blog-meta"><span class="blog-cat" style="background:#F3F0FF;color:#5A4F8A;">Parental Pressure</span><span class="blog-date">March 8, 2026</span></div>
+        <h3>The "Intensity Loop": Why Only Children Feel Everything More Deeply</h3>
+        <p>Without siblings to distribute attention and anxiety, only children absorb 100% of the family's emotional energy. Here's how to recognize and break this pattern…</p>
+        <span class="read-more">Read more →</span>
+      </div>`;
+
+    document.getElementById('reviewsContainer').innerHTML = `
+      <div class="review-item">
+        <div class="rev-stars">★★★★★</div>
+        <div class="rev-text">"Dr. Mehta understood my only-child experience in a way no one else ever has. The boundary scripts she gave me have changed my relationship with my parents in just 6 sessions."</div>
+        <div class="rev-from">— KinMember · Female · Mumbai · Nuclear Family</div>
+      </div>
+      <div class="review-item">
+        <div class="rev-stars">★★★★★</div>
+        <div class="rev-text">"Very structured, warm, and evidence-based. I came in with severe family conflict and left with real tools. Highly recommend for anyone dealing with Indian parental pressure."</div>
+        <div class="rev-from">— KinMember · Male · Bangalore · Generation Gap</div>
+      </div>
+      <div class="review-item">
+        <div class="rev-stars">★★★★☆</div>
+        <div class="rev-text">"Excellent KinMentor. The homework was genuinely useful. Sometimes sessions run over time but it's because she's thorough."</div>
+        <div class="rev-from">— KinMember · Female · Delhi · Marital Conflict</div>
+      </div>`;
+
+    document.getElementById('credentialsList').innerHTML = `
+      <div class="cred-item"><div class="cred-icon">🏛️</div><div class="cred-info"><h4>M.Phil Clinical Psychology</h4><p>NIMHANS, Bangalore · 2015</p></div></div>
+      <div class="cred-item"><div class="cred-icon">📜</div><div class="cred-info"><h4>RCI License</h4><p>#A-23814 · Valid 2026</p></div></div>
+      <div class="cred-item"><div class="cred-icon">🎖️</div><div class="cred-info"><h4>CBT Certification</h4><p>Beck Institute · 2018</p></div></div>
+      <div class="cred-item"><div class="cred-icon">🌐</div><div class="cred-info"><h4>Languages</h4><p>Hindi · English · Marathi</p></div></div>`;
+  }
+
+  document.addEventListener('DOMContentLoaded', loadProfile);
+</script>
+</body>
+</html>

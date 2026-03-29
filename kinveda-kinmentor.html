@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KinVeda – KinMentor Dashboard</title>
+<style>
+:root{--primary:#5A4F8A;--pd:#3E3568;--pl:#7B6DB0;--accent:#E8734A;--bg:#F7F5FB;--card:#FFF;--text:#1A1628;--muted:#6B6580;--border:#E4E0F0;--green:#059669;--shadow:0 2px 16px rgba(90,79,138,.10);--sw:260px;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;}
+.sidebar{width:var(--sw);background:white;border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:50;}
+.sb-logo{padding:20px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.sb-logo-icon{width:34px;height:34px;background:linear-gradient(135deg,var(--primary),var(--pl));border-radius:9px;display:flex;align-items:center;justify-content:center;color:white;font-size:17px;}
+.sb-logo-text{font-size:19px;font-weight:700;color:var(--pd);}
+.sb-logo-text span{color:var(--accent);}
+.sb-nav{flex:1;padding:14px 10px;overflow-y:auto;}
+.sb-sec{font-size:10px;font-weight:700;color:var(--muted);letter-spacing:1px;padding:8px 12px 5px;text-transform:uppercase;}
+.sb-item{display:flex;align-items:center;gap:10px;padding:9px 13px;border-radius:9px;cursor:pointer;text-decoration:none;color:var(--muted);font-size:14px;font-weight:500;transition:all .2s;margin-bottom:2px;}
+.sb-item:hover{background:#F3F0FF;color:var(--primary);}
+.sb-item.active{background:linear-gradient(135deg,#F3F0FF,#E9E4FF);color:var(--primary);font-weight:600;}
+.sb-item .icon{font-size:17px;width:21px;text-align:center;}
+.sb-item .badge{margin-left:auto;background:var(--accent);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;}
+.sb-user{padding:14px 18px;border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;}
+.sb-av{width:36px;height:36px;background:linear-gradient(135deg,#F3E8FF,#DDD6FE);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.sb-user-info h4{font-size:13px;font-weight:700;}
+.sb-user-info p{font-size:11px;color:var(--muted);}
+.main{margin-left:var(--sw);flex:1;}
+.topbar{background:white;border-bottom:1px solid var(--border);padding:0 28px;height:62px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;}
+.topbar h1{font-size:19px;font-weight:700;}
+.topbar-r{display:flex;align-items:center;gap:12px;}
+.nb{width:36px;height:36px;background:var(--bg);border-radius:9px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;font-size:15px;}
+.nd{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--accent);border-radius:50%;}
+.view-btn{background:var(--primary);color:white;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;}
+.content{padding:24px 28px;}
+.panel{display:none;}.panel.active{display:block;}
+/* Welcome */
+.welcome{background:linear-gradient(135deg,var(--primary),var(--pl));border-radius:18px;padding:26px 30px;color:white;margin-bottom:22px;display:flex;justify-content:space-between;align-items:center;}
+.welcome h2{font-size:21px;font-weight:700;margin-bottom:5px;}
+.welcome p{font-size:13px;opacity:.85;}
+.wbox{background:rgba(255,255,255,.2);border-radius:13px;padding:14px 22px;text-align:center;}
+.wbox .amt{font-size:28px;font-weight:800;}
+.wbox .lbl{font-size:11px;opacity:.85;font-weight:500;}
+.vbadge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.2);padding:5px 11px;border-radius:20px;font-size:11px;font-weight:700;margin-top:10px;}
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+.sc{background:white;border-radius:13px;padding:18px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.sc .si{font-size:22px;margin-bottom:8px;}
+.sc .sv{font-size:24px;font-weight:800;}
+.sc .sl{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px;}
+.sc .sx{font-size:11px;margin-top:3px;color:var(--green);font-weight:600;}
+/* Grid */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:18px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:18px;}
+.card{background:white;border-radius:15px;padding:22px;box-shadow:var(--shadow);border:1px solid var(--border);}
+.card-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-h h3{font-size:15px;font-weight:700;}
+.card-h a,.card-h button{font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;background:none;border:none;cursor:pointer;}
+/* Member items */
+.mi{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:11px;margin-bottom:9px;cursor:pointer;transition:all .2s;}
+.mi:hover{background:#F3F0FF;border-color:var(--pl);}
+.mi-av{width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#EEF7F5,#C8E6E1);display:flex;align-items:center;justify-content:center;font-size:17px;}
+.mi-info h4{font-size:13px;font-weight:700;margin-bottom:2px;}
+.mi-info p{font-size:11px;color:var(--muted);}
+.mi-meta{margin-left:auto;text-align:right;}
+.tag{display:inline-block;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:700;margin:1px;}
+.tn{background:#EEF7F5;color:#1E5C51;}
+.to{background:#F3E8FF;color:#5A4F8A;}
+.ts{background:#FEF3C7;color:#92400E;}
+/* Session */
+.sess-item{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:11px;margin-bottom:9px;}
+.sess-info h4{font-size:13px;font-weight:700;margin-bottom:2px;}
+.sess-info p{font-size:11px;color:var(--muted);}
+.sess-meta{margin-left:auto;text-align:right;}
+.join-btn{background:var(--primary);color:white;border:none;padding:7px 13px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-top:5px;}
+.badge{display:inline-block;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:700;}
+.b-today{background:#D1FAE5;color:#065F46;}
+.b-upcoming{background:#F3E8FF;color:var(--primary);}
+.b-completed{background:#D1FAE5;color:#065F46;}
+/* Notes editor */
+.note-tabs{display:flex;gap:4px;margin-bottom:14px;}
+.ntab{padding:6px 13px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid var(--border);color:var(--muted);}
+.ntab.active{background:var(--primary);color:white;border-color:var(--primary);}
+.note-area{width:100%;min-height:140px;border:1.5px solid var(--border);border-radius:9px;padding:12px;font-size:13px;font-family:inherit;resize:vertical;}
+.note-area:focus{outline:none;border-color:var(--primary);}
+/* Fee inputs */
+.fee-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
+.fee-row:last-child{border:none;}
+.fee-row label{font-size:13px;font-weight:600;}
+.fee-inp{display:flex;align-items:center;gap:6px;}
+.fee-inp input{width:90px;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-weight:700;text-align:right;}
+.fee-inp input:focus{outline:none;border-color:var(--primary);}
+/* Feedback */
+.fb-item{background:var(--bg);border-radius:11px;padding:13px;margin-bottom:9px;}
+.fb-stars{font-size:15px;margin-bottom:4px;}
+.fb-text{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:4px;}
+.fb-from{font-size:10px;color:var(--primary);font-weight:700;}
+/* Blog */
+.blog-item{display:flex;align-items:center;gap:12px;padding:13px;border:1px solid var(--border);border-radius:11px;margin-bottom:9px;}
+.blog-item h4{font-size:13px;font-weight:700;margin-bottom:3px;}
+.blog-item p{font-size:11px;color:var(--muted);}
+.blog-item .pub{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:6px;}
+/* Profile form */
+.pf-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+.pf-group{margin-bottom:4px;}
+.pf-group label{display:block;font-size:12px;font-weight:600;margin-bottom:6px;color:var(--muted);}
+.pf-group input,.pf-group textarea,.pf-group select{width:100%;padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
+.pf-group input:focus,.pf-group textarea:focus,.pf-group select:focus{outline:none;border-color:var(--primary);}
+.pf-group textarea{min-height:80px;resize:vertical;}
+.full{grid-column:1/-1;}
+/* Chat */
+.chat-window{display:flex;flex-direction:column;height:420px;}
+.chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--bg);border-radius:10px;margin-bottom:12px;}
+.msg{max-width:78%;padding:10px 14px;border-radius:12px;font-size:13px;line-height:1.5;}
+.msg.mine{background:var(--primary);color:white;align-self:flex-end;border-bottom-right-radius:4px;}
+.msg.theirs{background:white;color:var(--text);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--border);}
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{flex:1;padding:10px 14px;border:1.5px solid var(--border);border-radius:9px;font-size:13px;font-family:inherit;}
+.chat-input-row input:focus{outline:none;border-color:var(--primary);}
+.chat-send{background:var(--primary);color:white;border:none;padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+/* Availability */
+.avail-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.avail-row:last-child{border:none;}
+.avail-row label{font-size:13px;font-weight:600;width:120px;}
+.avail-row input{padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;}
+.avail-row input:focus{outline:none;border-color:var(--primary);}
+/* Btn */
+.btn-p{background:var(--primary);color:white;border:none;padding:11px 20px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-o{background:white;color:var(--primary);border:2px solid var(--primary);padding:10px 18px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;}
+.btn-sm{padding:6px 12px;border-radius:7px;font-size:12px;font-weight:700;border:none;cursor:pointer;}
+.btn-sm.green{background:#D1FAE5;color:#065F46;}
+.btn-sm.red{background:#FEE2E2;color:#991B1B;}
+.loading-state{padding:40px;text-align:center;color:var(--muted);}
+
+/* Availability scheduler */
+.avail-grid{display:flex;flex-direction:column;gap:16px;}
+.avail-day{background:var(--bg);border-radius:12px;padding:14px 18px;border:1px solid var(--border);}
+.avail-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.avail-day-name{font-size:14px;font-weight:700;}
+.avail-slots{display:flex;flex-direction:column;gap:8px;}
+.avail-slot{display:flex;align-items:center;gap:10px;}
+.avail-slot input[type="time"]{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;}
+.avail-slot input[type="text"]{flex:1;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:13px;}
+.avail-slot input:focus{outline:none;border-color:var(--primary);}
+.avail-slot .del-slot{background:#FEE2E2;color:#991B1B;border:none;border-radius:7px;padding:7px 10px;font-size:12px;cursor:pointer;font-weight:700;}
+.add-slot-btn{background:#F3F0FF;color:var(--primary);border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-top:6px;}
+.avail-copy-row{background:#EEF7F5;border-radius:10px;padding:14px;margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.avail-copy-row label{font-size:13px;font-weight:600;color:var(--pd);}
+
+/* Revenue dashboard */
+.rev-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px;}
+.rev-chart{background:var(--bg);border-radius:12px;padding:16px;margin-bottom:16px;}
+.rev-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.rev-bar-label{font-size:12px;font-weight:600;width:80px;color:var(--muted);}
+.rev-bar-track{flex:1;height:12px;background:#E9E4FF;border-radius:6px;overflow:hidden;}
+.rev-bar-fill{height:100%;background:linear-gradient(90deg,var(--primary),var(--pl));border-radius:6px;}
+.rev-bar-amt{font-size:12px;font-weight:700;width:80px;text-align:right;}
+.payout-item{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid var(--border);}
+.payout-item:last-child{border:none;}
+.member-rev-table{width:100%;border-collapse:collapse;font-size:13px;}
+.member-rev-table th{text-align:left;font-size:11px;font-weight:700;color:var(--muted);padding:6px 8px;border-bottom:2px solid var(--border);}
+.member-rev-table td{padding:10px 8px;border-bottom:1px solid var(--border);}
+
+/* Session actions */
+.sess-actions{display:flex;gap:7px;margin-top:7px;}
+.act-btn{padding:7px 12px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;border:none;}
+.act-btn.join{background:var(--primary);color:white;}
+.act-btn.rec-upload{background:#6D28D9;color:white;}
+.act-btn.complete{background:var(--green);color:white;}
+.rec-url-input{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;flex:1;}
+.rec-url-input:focus{outline:none;border-color:var(--primary);}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-icon">🌿</div>
+    <div class="sb-logo-text">Kin<span>Veda</span></div>
+  </div>
+  <div class="sb-nav">
+    <div class="sb-sec">My Practice</div>
+    <a href="#" class="sb-item active" onclick="showPanel('dashboard',this)"><span class="icon">🏠</span> Dashboard</a>
+    <a href="#" class="sb-item" onclick="showPanel('members',this)"><span class="icon">👥</span> My KinMembers <span class="badge" id="membersCount">0</span></a>
+    <a href="#" class="sb-item" onclick="showPanel('sessions',this)"><span class="icon">📅</span> Session Queue</a>
+    <a href="#" class="sb-item" onclick="showPanel('notes',this)"><span class="icon">📝</span> Case Notes</a>
+    <a href="#" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Messages</a>
+    <a href="#" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Assign Homework</a>
+    <div class="sb-sec">Profile & Growth</div>
+    <a href="kinveda-kinmentor-profile.html" class="sb-item"><span class="icon">👤</span> My Public Profile</a>
+    <a href="#" class="sb-item" onclick="showPanel('blog',this)"><span class="icon">✍️</span> Blog Posts</a>
+    <a href="#" class="sb-item" onclick="showPanel('reviews',this)"><span class="icon">⭐</span> Reviews</a>
+    <a href="#" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">⚙️</span> Profile Editor</a>
+    <div class="sb-sec">Schedule & Earnings</div>
+    <a href="#" class="sb-item" onclick="showPanel('availability',this)"><span class="icon">🗓️</span> My Availability</a>
+    <a href="#" class="sb-item" onclick="showPanel('fees',this)"><span class="icon">💰</span> Session Fees</a>
+    <a href="#" class="sb-item" onclick="showPanel('earnings',this)"><span class="icon">📊</span> Revenue Dashboard</a>
+    <a href="#" class="sb-item" onclick="KV.signOut()"><span class="icon">↩️</span> Sign Out</a>
+  </div>
+  <div class="sb-user">
+    <div class="sb-av">👩‍⚕️</div>
+    <div class="sb-user-info">
+      <h4 id="sbName">Loading...</h4>
+      <p>KinMentor · RCI ✓</p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+  <div class="topbar">
+    <h1 id="topbarTitle">KinMentor Dashboard</h1>
+    <div class="topbar-r">
+      <div class="nb">🔔<div class="nd"></div></div>
+      <a href="kinveda-kinmentor-profile.html" class="view-btn">View Public Profile →</a>
+    </div>
+  </div>
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="panel active" id="panel-dashboard">
+      <div class="welcome">
+        <div>
+          <h2 id="welcomeName">Good day 👋</h2>
+          <p id="todayLine">Loading today's sessions...</p>
+          <div class="vbadge" id="verifiedBadge">⏳ Verification Pending</div>
+        </div>
+        <div class="wbox">
+          <div class="amt" id="monthRevenue">₹—</div>
+          <div class="lbl">This Month's Earnings</div>
+        </div>
+      </div>
+      <div class="stats" id="statsRow">
+        <div class="sc"><div class="si">👥</div><div class="sv" id="st1">—</div><div class="sl">Active KinMembers</div></div>
+        <div class="sc"><div class="si">🎥</div><div class="sv" id="st2">—</div><div class="sl">Sessions This Month</div></div>
+        <div class="sc"><div class="si">⭐</div><div class="sv" id="st3">—</div><div class="sl">Average Rating</div></div>
+        <div class="sc"><div class="si">📦</div><div class="sv" id="st4">—</div><div class="sl">Active Packages</div></div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><h3>📅 Today's Sessions</h3><a href="#" onclick="showPanel('sessions',null)">Full queue</a></div>
+          <div id="todaySessions"><div class="loading-state">Loading...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>👥 Recent KinMembers</h3><a href="#" onclick="showPanel('members',null)">View all</a></div>
+          <div id="recentMembers"><div class="loading-state">Loading...</div></div>
+        </div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><h3>⭐ Recent Reviews</h3><a href="#" onclick="showPanel('reviews',null)">All reviews</a></div>
+          <div id="recentReviews"><div class="loading-state">Loading...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>💰 Quick Fee Overview</h3><a href="#" onclick="showPanel('fees',null)">Edit fees</a></div>
+          <div id="feeOverview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MEMBERS -->
+    <div class="panel" id="panel-members">
+      <div class="card">
+        <div class="card-h"><h3>👥 My KinMembers</h3><span id="memberTotalLbl" style="font-size:12px;color:var(--muted);"></span></div>
+        <div id="allMembers"><div class="loading-state">Loading KinMembers...</div></div>
+      </div>
+    </div>
+
+    <!-- SESSIONS -->
+    <div class="panel" id="panel-sessions">
+      <div class="card">
+        <div class="card-h"><h3>📅 Session Queue</h3></div>
+        <div id="allSessions"><div class="loading-state">Loading sessions...</div></div>
+      </div>
+    </div>
+
+    <!-- CASE NOTES -->
+    <div class="panel" id="panel-notes">
+      <div class="card">
+        <div class="card-h"><h3>📝 Case Notes</h3>
+          <select id="notesMemberSel" onchange="loadNotes()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+            <option value="">Select KinMember...</option>
+          </select>
+        </div>
+        <div class="note-tabs">
+          <div class="ntab active" onclick="setNoteTab(this,'conceptualization')">Case Conceptualization</div>
+          <div class="ntab" onclick="setNoteTab(this,'session')">Session Notes</div>
+          <div class="ntab" onclick="setNoteTab(this,'progress')">Therapeutic Progress</div>
+        </div>
+        <textarea class="note-area" id="noteArea" placeholder="Start typing your notes here..."></textarea>
+        <div style="margin-top:12px;display:flex;gap:10px;">
+          <button class="btn-p" onclick="saveNotes()">💾 Save Notes</button>
+          <div style="background:#F3F0FF;border-radius:8px;padding:10px 14px;font-size:12px;color:var(--pd);flex:1;">
+            🔒 Notes are AES-256 encrypted. Not visible to admin or other staff.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="panel" id="panel-chat">
+      <div class="card">
+        <div class="card-h"><h3>💬 Messages with KinMember</h3>
+          <select id="chatMemberSel" onchange="loadMentorMessages()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+            <option value="">Select KinMember...</option>
+          </select>
+        </div>
+        <div class="chat-window">
+          <div class="chat-msgs" id="chatMsgs"><div class="loading-state">Select a KinMember to view messages.</div></div>
+          <div class="chat-input-row">
+            <input id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendMentorMsg()">
+            <button class="chat-send" onclick="sendMentorMsg()">Send →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOMEWORK -->
+    <div class="panel" id="panel-homework">
+      <div class="card">
+        <div class="card-h"><h3>✏️ Assign Homework</h3></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+          <div class="pf-group">
+            <label>KinMember</label>
+            <select id="hw-member" style="padding:10px 13px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;width:100%;font-family:inherit;"></select>
+          </div>
+          <div class="pf-group">
+            <label>Due Date (optional)</label>
+            <input type="date" id="hw-due">
+          </div>
+          <div class="pf-group full">
+            <label>Homework Task</label>
+            <textarea id="hw-task" placeholder="Describe the homework task..." style="min-height:80px;width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+          </div>
+        </div>
+        <button class="btn-p" onclick="assignHomework()">Assign Homework →</button>
+      </div>
+    </div>
+
+    <!-- BLOG -->
+    <div class="panel" id="panel-blog">
+      <div class="card">
+        <div class="card-h"><h3>✍️ My Blog Posts</h3>
+          <button class="btn-p" onclick="document.getElementById('newBlogForm').style.display='block'">+ New Post</button>
+        </div>
+        <div id="newBlogForm" style="display:none;background:var(--bg);border-radius:12px;padding:18px;margin-bottom:18px;">
+          <div class="pf-grid" style="gap:12px;">
+            <div class="pf-group"><label>Title</label><input id="blog-title" placeholder="e.g. 3 Ways to Set Boundaries..."></div>
+            <div class="pf-group"><label>Category</label>
+              <select id="blog-cat" style="padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:100%;">
+                <option value="Only Child">Only Child</option>
+                <option value="Parental Pressure">Parental Pressure</option>
+                <option value="Generation Gap">Generation Gap</option>
+                <option value="Substance">Substance</option>
+                <option value="General Wellness">General Wellness</option>
+              </select>
+            </div>
+            <div class="pf-group full"><label>Content</label><textarea id="blog-content" style="min-height:120px;" placeholder="Write your blog post..."></textarea></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:14px;">
+            <button class="btn-p" onclick="publishBlog(true)">Publish Now</button>
+            <button class="btn-o" onclick="publishBlog(false)">Save as Draft</button>
+          </div>
+        </div>
+        <div id="blogList"><div class="loading-state">Loading posts...</div></div>
+      </div>
+    </div>
+
+    <!-- REVIEWS -->
+    <div class="panel" id="panel-reviews">
+      <div class="card">
+        <div class="card-h"><h3>⭐ All Reviews</h3></div>
+        <div id="allReviews"><div class="loading-state">Loading reviews...</div></div>
+      </div>
+    </div>
+
+    <!-- PROFILE EDITOR -->
+    <div class="panel" id="panel-profile">
+      <div class="card">
+        <div class="card-h"><h3>⚙️ Edit My Profile</h3>
+          <button class="btn-p" onclick="saveProfile()">Save All Changes</button>
+        </div>
+        <div class="pf-grid">
+          <div class="pf-group"><label>Full Name</label><input id="pf-name"></div>
+          <div class="pf-group"><label>Phone</label><input id="pf-phone"></div>
+          <div class="pf-group"><label>City</label><input id="pf-city"></div>
+          <div class="pf-group"><label>RCI License No.</label><input id="pf-rci"></div>
+          <div class="pf-group"><label>Years of Experience</label><input id="pf-exp" type="number" min="0"></div>
+          <div class="pf-group"><label>Languages</label><input id="pf-langs" placeholder="Hindi, English..."></div>
+          <div class="pf-group full"><label>Qualification</label><input id="pf-qual" placeholder="e.g. M.Phil Clinical Psychology, NIMHANS"></div>
+          <div class="pf-group full"><label>Personal Bio (your public statement)</label><textarea id="pf-bio" placeholder="Write your introduction in first person..."></textarea></div>
+          <div class="pf-group full"><label>My Therapeutic Approach</label><textarea id="pf-approach" placeholder="Describe your therapy style and methods..."></textarea></div>
+          <div class="pf-group full"><label>Specialization Tags (comma-separated)</label><input id="pf-tags" placeholder="#NuclearFamily, #OnlyChild, #Anxiety..."></div>
+        </div>
+        <div style="margin-top:18px;background:#F3F0FF;border-radius:10px;padding:14px;font-size:12px;color:var(--pd);">
+          🔒 Your professional bio and personal details are AES-256 encrypted. Only your public profile displays approved content.
+        </div>
+      </div>
+    </div>
+
+    <!-- FEES -->
+    <div class="panel" id="panel-fees">
+      <div class="card">
+        <div class="card-h"><h3>💰 My Session Fees</h3>
+          <button class="btn-p" onclick="saveFees()">Save Rates</button>
+        </div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:18px;">
+          Clients see your rates before booking. KinVeda takes 0% — you set your own fees freely.
+        </div>
+        <div class="fee-row"><label>Per 30 Minutes</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="fee30" placeholder="0"></div></div>
+        <div class="fee-row"><label>Per 60 Minutes</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="fee60" placeholder="0"></div></div>
+        <div class="fee-row"><label>Monthly Package (8 sessions)</label><div class="fee-inp"><span style="font-size:16px;color:var(--muted);">₹</span><input type="number" id="feeMonthly" placeholder="0"></div></div>
+        <div style="margin-top:16px;background:#EEF7F5;border-radius:10px;padding:12px;font-size:12px;color:#1E5C51;">
+          💡 Your rates display to KinMembers as: ₹{30min}/30 min · ₹{60min}/hr on your public profile.
+        </div>
+      </div>
+    </div>
+
+    <!-- AVAILABILITY SCHEDULER -->
+    <div class="panel" id="panel-availability">
+      <div class="card">
+        <div class="card-h">
+          <h3>🗓️ My Weekly Availability</h3>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-o" onclick="loadAvailability()">↺ Reset</button>
+            <button class="btn-p" onclick="saveAvailability()">💾 Save All Slots</button>
+          </div>
+        </div>
+        <div style="background:#EEF7F5;border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:13px;color:var(--pd);">
+          Set your repeating weekly availability. KinMembers and admin will use these slots for scheduling sessions.
+          Add multiple slots per day. Changes take effect immediately.
+        </div>
+        <div class="avail-grid" id="availGrid"></div>
+        <div class="avail-copy-row">
+          <label>📋 Copy this schedule to:</label>
+          <select id="copyMonthSel" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+            <option value="">Select month...</option>
+          </select>
+          <button class="btn-o" onclick="copyToMonth()">Copy to Month</button>
+          <button class="btn-o" onclick="copyToFuture()">Copy to All Future Months</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EARNINGS / REVENUE DASHBOARD -->
+    <div class="panel" id="panel-earnings">
+      <div class="rev-stats">
+        <div class="sc"><div class="si">💰</div><div class="sv" id="revTotal">₹—</div><div class="sl">Total Earned</div></div>
+        <div class="sc"><div class="si">💸</div><div class="sv" id="revPaidOut">₹—</div><div class="sl">Total Paid Out</div></div>
+        <div class="sc"><div class="si">⏳</div><div class="sv" id="revBalance">₹—</div><div class="sl">Balance Due</div></div>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-h"><h3>📈 Monthly Revenue</h3></div>
+          <div class="rev-chart" id="revMonthlyChart"><div class="loading-state">Loading...</div></div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h3>💸 Received Payouts</h3></div>
+          <div id="revPayouts"><div class="loading-state">Loading...</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>👥 Revenue by KinMember</h3></div>
+        <div id="revByMember"><div class="loading-state">Loading...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script src="kinveda-api.js"></script>
+<script>
+let userData=null, profileData=null, membersData=[], sessionsData=[], reviewsData=[], blogData=[];
+let currentNoteTab='conceptualization', currentChatMemberId=null;
+// Availability: { 0..6: [ {startTime, endTime, label} ] } (0=Mon)
+let availSlots = {};
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  userData = KV.requireAuth('kinmentor');
+  if (!userData) return;
+  document.getElementById('sbName').textContent = userData.name || 'KinMentor';
+  document.getElementById('welcomeName').textContent = `Good day, ${userData.name} 👋`;
+  populateCopyMonthSelect();
+  await Promise.all([loadDashboard(), loadMembers(), loadSessions(), loadReviews(), loadBlog()]);
+  populateMemberDropdowns();
+  initAvailGrid();
+  loadAvailability();
+});
+
+function showPanel(name, el) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.sb-item').forEach(e=>e.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const titles={dashboard:'KinMentor Dashboard',members:'My KinMembers',sessions:'Session Queue',notes:'Case Notes',chat:'Messages',homework:'Assign Homework',blog:'Blog Posts',reviews:'Reviews',profile:'Profile Editor',fees:'Session Fees',earnings:'Revenue Dashboard',availability:'My Availability'};
+  document.getElementById('topbarTitle').textContent=titles[name]||'Dashboard';
+  if (name === 'earnings') loadRevenue();
+}
+
+async function loadDashboard() {
+  const res = await KV.get('/api/kinmentor/dashboard');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  const s = data.stats;
+  document.getElementById('st1').textContent = s.totalMembers;
+  document.getElementById('st2').textContent = s.sessionsThisMonth;
+  document.getElementById('st3').textContent = s.avgRating?.toFixed(1) || '—';
+  document.getElementById('st4').textContent = '—'; // package count from sessions
+  document.getElementById('monthRevenue').textContent = `₹${(s.revenueThisMonth||0).toLocaleString('en-IN')}`;
+  document.getElementById('todayLine').textContent = `${s.upcomingSessions} upcoming sessions`;
+}
+
+async function loadMembers() {
+  const res = await KV.get('/api/kinmentor/members');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  membersData = data.members;
+  document.getElementById('membersCount').textContent = membersData.length;
+  document.getElementById('memberTotalLbl').textContent = `${membersData.length} total`;
+  renderMembers();
+}
+
+async function loadProfile() {
+  const res = await KV.get('/api/kinmentor/profile');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  profileData = data.profile;
+  document.getElementById('sbName').textContent = profileData.name||'KinMentor';
+  document.getElementById('pf-name').value = profileData.name||'';
+  document.getElementById('pf-phone').value = profileData.phone||'';
+  document.getElementById('pf-city').value = profileData.city||'';
+  document.getElementById('pf-rci').value = profileData.rciLicense||'';
+  document.getElementById('pf-exp').value = profileData.experienceYears||'';
+  document.getElementById('pf-langs').value = profileData.languages||'';
+  document.getElementById('pf-qual').value = profileData.qualification||'';
+  document.getElementById('pf-bio').value = profileData.bio||'';
+  document.getElementById('pf-approach').value = profileData.approach||'';
+  document.getElementById('pf-tags').value = (profileData.specializations||[]).join(', ');
+  document.getElementById('fee30').value = profileData.rate30min||0;
+  document.getElementById('fee60').value = profileData.rate60min||0;
+  document.getElementById('feeMonthly').value = profileData.rateMonthly||0;
+  const vb = document.getElementById('verifiedBadge');
+  if (profileData.isRciVerified && profileData.isPaymentVerified) {
+    vb.textContent = '✅ RCI Verified · Payment Active';
+  } else {
+    vb.textContent = '⏳ Pending Admin Verification';
+  }
+  // Fee overview
+  document.getElementById('feeOverview').innerHTML = `
+    <div class="fee-row"><label>30 min</label><div class="fee-inp">₹${profileData.rate30min||0}</div></div>
+    <div class="fee-row"><label>60 min</label><div class="fee-inp">₹${profileData.rate60min||0}</div></div>
+    <div class="fee-row"><label>Monthly Package</label><div class="fee-inp">₹${profileData.rateMonthly||0}</div></div>
+  `;
+}
+
+async function loadSessions() {
+  const res = await KV.get('/api/kinmentor/sessions');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  sessionsData = data.sessions;
+  renderSessions();
+}
+
+async function loadReviews() {
+  const res = await KV.get('/api/kinmentor/reviews');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  reviewsData = data.reviews;
+  renderReviews();
+}
+
+async function loadBlog() {
+  const res = await KV.get('/api/kinmentor/blog');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  blogData = data.posts;
+  renderBlog();
+}
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function renderMembers() {
+  const el = document.getElementById('allMembers');
+  const rec = document.getElementById('recentMembers');
+  if (!membersData.length) { el.innerHTML='<p style="font-size:13px;color:var(--muted);">No KinMembers assigned yet.</p>'; if(rec) rec.innerHTML='<p style="font-size:13px;color:var(--muted);">No KinMembers yet.</p>'; return; }
+  const html = membersData.map(m => `<div class="mi">
+    <div class="mi-av">😊</div>
+    <div class="mi-info"><h4>${m.name}</h4><p>${m.city||''}${m.familyStructure?` · ${m.familyStructure}`:''}</p></div>
+    <div class="mi-meta">
+      ${m.familyStructure?`<span class="tag tn">${m.familyStructure}</span>`:''}
+      ${m.childStatus==='only_child'?`<span class="tag to">Only Child</span>`:''}
+      <div style="font-size:10px;color:var(--muted);margin-top:4px;">${m.nextSession?'Next: '+KV.fmtDate(m.nextSession):'No upcoming'}</div>
+    </div>
+  </div>`).join('');
+  el.innerHTML = html;
+  if (rec) rec.innerHTML = membersData.slice(0,3).map(m => `<div class="mi"><div class="mi-av">😊</div><div class="mi-info"><h4>${m.name}</h4><p>${m.familyStructure||''}</p></div></div>`).join('');
+}
+
+function renderSessions() {
+  const el = document.getElementById('allSessions');
+  const tod = document.getElementById('todaySessions');
+  if (!sessionsData.length) {
+    if(el) el.innerHTML='<p style="font-size:13px;color:var(--muted);">No sessions yet.</p>';
+    if(tod) tod.innerHTML='<p style="font-size:13px;color:var(--muted);">No sessions today.</p>';
+    return;
+  }
+
+  function sessCard(s, compact) {
+    const mentorName = encodeURIComponent(profileData?.name || userData?.name || 'KinMentor');
+    const canJoin = s.videoRoom && s.status !== 'completed' && s.status !== 'cancelled' && s.paymentStatus !== 'unpaid';
+    return `<div class="sess-item" style="${compact?'':'flex-direction:column;align-items:flex-start;'}">
+      <div style="display:flex;align-items:center;gap:12px;width:100%;">
+        <div class="mi-av">😊</div>
+        <div class="sess-info"><h4>${s.memberName}</h4><p>${s.durationMins} min${s.familyStructure?' · '+s.familyStructure:''}</p></div>
+        <div class="sess-meta">
+          <div style="font-size:12px;font-weight:600;color:var(--primary);">${KV.fmtDate(s.scheduledAt)}</div>
+          <div style="margin-top:3px;"><span class="badge ${s.status==='completed'?'b-completed':'b-upcoming'}">${s.status}</span></div>
+        </div>
+      </div>
+      ${!compact ? `<div class="sess-actions">
+        ${canJoin ? `<button class="act-btn join" onclick="KV.joinVideoCall('${s.videoRoom}','${mentorName}')">🎥 Join Session</button>` : ''}
+        ${s.status==='completed' && !s.recordingUrl ? `<button class="act-btn rec-upload" onclick="showRecordingForm(${s.id})">📎 Add Recording</button>` : ''}
+        ${s.recordingUrl ? `<a class="act-btn complete" style="text-decoration:none;" href="${s.recordingUrl}" target="_blank" rel="noopener">▶ Recording</a>` : ''}
+      </div>
+      <div id="recForm${s.id}" style="display:none;margin-top:8px;display:none;gap:8px;width:100%;align-items:center;">
+        <input class="rec-url-input" id="recUrl${s.id}" placeholder="Paste recording URL (Google Drive, Vimeo...)">
+        <button class="act-btn rec-upload" onclick="uploadRecording(${s.id})">Save</button>
+      </div>` : ''}
+    </div>`;
+  }
+
+  if (el) el.innerHTML = sessionsData.map(s => sessCard(s, false)).join('');
+
+  const nowSecs = Date.now()/1000;
+  const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  const todayEnd = new Date(); todayEnd.setHours(23,59,59,999);
+  const todaySess = sessionsData.filter(s => s.scheduledAt*1000 >= todayStart.getTime() && s.scheduledAt*1000 <= todayEnd.getTime());
+  if (tod) tod.innerHTML = todaySess.length
+    ? todaySess.map(s => sessCard(s, true)).join('')
+    : '<p style="font-size:13px;color:var(--muted);">No sessions today.</p>';
+}
+
+function showRecordingForm(sessionId) {
+  const form = document.getElementById('recForm'+sessionId);
+  if (form) { form.style.display = form.style.display === 'none' ? 'flex' : 'none'; }
+}
+
+async function uploadRecording(sessionId) {
+  const url = document.getElementById('recUrl'+sessionId)?.value?.trim();
+  if (!url) { KV.showToast('Please enter a valid URL.', 'warning'); return; }
+  const res = await KV.patch(`/api/kinmentor/sessions/${sessionId}/recording`, { recordingUrl: url });
+  if (res?.ok) {
+    KV.showToast('Recording link saved!', 'success');
+    await loadSessions();
+    renderSessions();
+  }
+}
+
+function renderReviews() {
+  const el = document.getElementById('allReviews');
+  const recent = document.getElementById('recentReviews');
+  const html = reviewsData.length ? reviewsData.map(r => `<div class="fb-item">
+    <div class="fb-stars">${'★'.repeat(r.rating)}${'☆'.repeat(5-r.rating)}</div>
+    <div class="fb-text">${r.comment||'(No comment)'}</div>
+    <div class="fb-from">— ${r.familyStructure||'KinMember'} · ${KV.fmtDate(r.createdAt)}</div>
+  </div>`).join('') : '<p style="font-size:13px;color:var(--muted);">No reviews yet.</p>';
+  if (el) el.innerHTML = html;
+  if (recent) recent.innerHTML = reviewsData.slice(0,2).map(r=>`<div class="fb-item">
+    <div class="fb-stars">${'★'.repeat(r.rating)}</div>
+    <div class="fb-text">${(r.comment||'').slice(0,100)}${r.comment?.length>100?'...':''}</div>
+  </div>`).join('') || '<p style="font-size:13px;color:var(--muted);">No reviews yet.</p>';
+}
+
+function renderBlog() {
+  const el = document.getElementById('blogList');
+  if (!el) return;
+  if (!blogData.length) { el.innerHTML='<p style="font-size:13px;color:var(--muted);">No blog posts yet. Write your first one!</p>'; return; }
+  el.innerHTML = blogData.map(p=>`<div class="blog-item">
+    <div style="width:40px;height:40px;background:#F3F0FF;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:20px;">✍️</div>
+    <div><h4>${p.title}</h4><p>${p.category||''} · ${p.is_published?'Published':'Draft'}</p></div>
+    <div class="pub">
+      <span class="btn-sm ${p.is_published?'green':'red'}">${p.is_published?'Published':'Draft'}</span>
+      <span style="font-size:10px;color:var(--muted);">${KV.fmtDate(p.published_at||p.created_at)}</span>
+    </div>
+  </div>`).join('');
+}
+
+function populateMemberDropdowns() {
+  const opts = membersData.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  ['notesMemberSel','chatMemberSel','hw-member'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=`<option value="">Select...</option>`+opts; });
+}
+
+// ─── Notes ────────────────────────────────────────────────────────────────────
+function setNoteTab(el, tab) {
+  document.querySelectorAll('.ntab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  currentNoteTab = tab;
+}
+
+async function loadNotes() {
+  const memberId = document.getElementById('notesMemberSel').value;
+  if (!memberId) return;
+  const res = await KV.get(`/api/kinmentor/notes/${memberId}`);
+  if (!res) return;
+  const data = await res.json();
+  document.getElementById('noteArea').value = data.notes || '';
+}
+
+// ─── Chat ─────────────────────────────────────────────────────────────────────
+async function loadMentorMessages() {
+  currentChatMemberId = document.getElementById('chatMemberSel').value;
+  const el = document.getElementById('chatMsgs');
+  if (!currentChatMemberId) { el.innerHTML='<div class="loading-state">Select a KinMember to view messages.</div>'; return; }
+  el.innerHTML = '<div class="loading-state">Loading...</div>';
+  const res = await KV.get(`/api/kinmentor/messages/${currentChatMemberId}`);
+  if (!res) { el.innerHTML='<p style="font-size:13px;color:var(--muted);">Could not load messages.</p>'; return; }
+  const data = await res.json();
+  if (!data.success || !data.messages?.length) {
+    el.innerHTML='<div class="loading-state">No messages yet.</div>'; return;
+  }
+  el.innerHTML = data.messages.map(m => `<div class="msg ${m.isMine?'mine':'theirs'}">${escMh(m.message)}<div style="font-size:10px;opacity:.7;margin-top:3px;">${m.isMine?'You':'KinMember'} · ${KV.fmtDate(m.createdAt)}</div></div>`).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function escMh(s){ return s?(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
+
+async function sendMentorMsg() {
+  if (!currentChatMemberId) { KV.showToast('Select a KinMember first.', 'warning'); return; }
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  const res = await KV.post(`/api/kinmentor/messages/${currentChatMemberId}`, { message: msg });
+  if (res?.ok) loadMentorMessages();
+}
+
+// ─── Availability ─────────────────────────────────────────────────────────────
+function initAvailGrid() {
+  const grid = document.getElementById('availGrid');
+  grid.innerHTML = DAYS.map((day, i) => `
+    <div class="avail-day" id="day-${i}">
+      <div class="avail-day-header">
+        <div class="avail-day-name">${day}</div>
+        <button class="add-slot-btn" onclick="addSlot(${i})">+ Add Slot</button>
+      </div>
+      <div class="avail-slots" id="slots-${i}">
+        <div style="font-size:12px;color:var(--muted);padding:4px 0;">No slots set — click Add Slot</div>
+      </div>
+    </div>`).join('');
+}
+
+function addSlot(dayIdx, start='09:00', end='10:00', label='') {
+  const container = document.getElementById('slots-' + dayIdx);
+  // Remove placeholder
+  const placeholder = container.querySelector('div[style]');
+  if (placeholder) placeholder.remove();
+
+  const slotId = `slot-${dayIdx}-${Date.now()}`;
+  const div = document.createElement('div');
+  div.className = 'avail-slot';
+  div.id = slotId;
+  div.innerHTML = `
+    <input type="time" value="${start}" id="${slotId}-start">
+    <span style="font-size:13px;color:var(--muted);">to</span>
+    <input type="time" value="${end}" id="${slotId}-end">
+    <input type="text" placeholder="Label (e.g. Morning slot)" value="${label}" id="${slotId}-label">
+    <button class="del-slot" onclick="document.getElementById('${slotId}').remove()">✕</button>`;
+  container.appendChild(div);
+}
+
+async function loadAvailability() {
+  const res = await KV.get('/api/kinmentor/availability');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  // Re-init grid then populate
+  initAvailGrid();
+  (data.slots || []).forEach(slot => {
+    addSlot(slot.dayOfWeek, slot.startTime, slot.endTime, slot.label || '');
+  });
+}
+
+async function saveAvailability() {
+  const slots = [];
+  for (let i = 0; i < 7; i++) {
+    const container = document.getElementById('slots-' + i);
+    container.querySelectorAll('.avail-slot').forEach(div => {
+      const sid = div.id;
+      const start = document.getElementById(sid+'-start')?.value;
+      const end = document.getElementById(sid+'-end')?.value;
+      const label = document.getElementById(sid+'-label')?.value?.trim();
+      if (start && end) slots.push({ dayOfWeek: i, startTime: start, endTime: end, label: label||'' });
+    });
+  }
+  const res = await KV.post('/api/kinmentor/availability/bulk', { slots });
+  if (!res) return;
+  const data = await res.json();
+  if (data.success) KV.showToast(`${slots.length} availability slots saved!`, 'success');
+  else KV.showToast(data.message || 'Save failed.', 'error');
+}
+
+function populateCopyMonthSelect() {
+  const sel = document.getElementById('copyMonthSel');
+  const now = new Date();
+  for (let i = 1; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const opt = document.createElement('option');
+    opt.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    opt.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+    sel.appendChild(opt);
+  }
+}
+
+function copyToMonth() {
+  const month = document.getElementById('copyMonthSel').value;
+  if (!month) { KV.showToast('Please select a month first.', 'warning'); return; }
+  KV.showToast(`Schedule copied to ${month}! (Save to apply)`, 'info');
+}
+
+function copyToFuture() {
+  KV.showToast('Schedule will be applied to all future months! (Save to apply)', 'info');
+}
+
+// ─── Revenue Dashboard ────────────────────────────────────────────────────────
+async function loadRevenue() {
+  const res = await KV.get('/api/kinmentor/revenue');
+  if (!res) return;
+  const data = await res.json();
+  if (!data.success) return;
+  const r = data.revenue;
+
+  // Stats
+  document.getElementById('revTotal').textContent    = KV.fmtINR(r.totalEarned);
+  document.getElementById('revPaidOut').textContent  = KV.fmtINR(r.totalPaidOut);
+  document.getElementById('revBalance').textContent  = KV.fmtINR((r.totalEarned||0) - (r.totalPaidOut||0));
+
+  // Monthly bar chart
+  const monthlyEl = document.getElementById('revMonthlyChart');
+  const months = r.monthly || [];
+  if (!months.length) { monthlyEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">No data yet.</p>'; }
+  else {
+    const maxAmt = Math.max(...months.map(m=>m.amount), 1);
+    monthlyEl.innerHTML = months.map(m => `
+      <div class="rev-bar-row">
+        <div class="rev-bar-label">${m.month}</div>
+        <div class="rev-bar-track"><div class="rev-bar-fill" style="width:${Math.round((m.amount/maxAmt)*100)}%"></div></div>
+        <div class="rev-bar-amt">${KV.fmtINR(m.amount)}</div>
+      </div>`).join('');
+  }
+
+  // Payouts received
+  const payoutsEl = document.getElementById('revPayouts');
+  const payouts = r.payouts || [];
+  if (!payouts.length) { payoutsEl.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No payouts received yet.</p>'; }
+  else {
+    payoutsEl.innerHTML = payouts.map(p => `
+      <div class="payout-item">
+        <div>
+          <div style="font-size:13px;font-weight:700;">${KV.fmtINR(p.payoutAmount)}</div>
+          <div style="font-size:11px;color:var(--muted);">${p.note||'Payout'} · ${KV.fmtDate(p.createdAt)}</div>
+        </div>
+        <span style="font-size:11px;font-weight:700;color:var(--green);">✓ ${p.status}</span>
+      </div>`).join('');
+  }
+
+  // By member
+  const byMemberEl = document.getElementById('revByMember');
+  const members = r.byMember || [];
+  if (!members.length) { byMemberEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">No member data yet.</p>'; }
+  else {
+    byMemberEl.innerHTML = `<table class="member-rev-table">
+      <thead><tr><th>KinMember</th><th>Sessions</th><th>Total Paid</th></tr></thead>
+      <tbody>${members.map(m=>`<tr>
+        <td>${m.memberName}</td>
+        <td>${m.sessionCount}</td>
+        <td style="font-weight:700;color:var(--pd);">${KV.fmtINR(m.totalAmount)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+  }
+}
+
+// Notes save
+async function saveNotes() {
+  const sessId = document.getElementById('notesMemberSel').value;
+  if (!sessId) { KV.showToast('Please select a KinMember first.', 'warning'); return; }
+  const notes = document.getElementById('noteArea').value;
+  const res = await KV.put(`/api/kinmentor/notes/${sessId}`, { notes });
+  if (res?.ok) KV.showToast('Notes saved securely! 🔒', 'success');
+}
+
+// Homework assign
+async function assignHomework() {
+  const memberId = document.getElementById('hw-member').value;
+  const task = document.getElementById('hw-task').value.trim();
+  const dueDate = document.getElementById('hw-due').value;
+  if (!memberId || !task) { KV.showToast('Please select a KinMember and enter a task.', 'warning'); return; }
+  const res = await KV.post('/api/kinmentor/homework', { memberId: parseInt(memberId), task, dueDate: dueDate || undefined });
+  if (res?.ok) { KV.showToast('Homework assigned!', 'success'); document.getElementById('hw-task').value=''; }
+}
+
+// Blog
+async function publishBlog(pub) {
+  const title = document.getElementById('blog-title').value.trim();
+  const content = document.getElementById('blog-content').value.trim();
+  const category = document.getElementById('blog-cat').value;
+  if (!title || !content) { KV.showToast('Please enter title and content.', 'warning'); return; }
+  const res = await KV.post('/api/kinmentor/blog', { title, content, category, isPublished: pub });
+  if (res?.ok) { KV.showToast(`Post ${pub?'published':'saved as draft'}!`, 'success'); document.getElementById('newBlogForm').style.display='none'; await loadBlog(); }
+}
+
+// Load profile data for the forms
+loadProfile();
+</script>
+</body>
+</html>

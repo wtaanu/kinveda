@@ -1,0 +1,18 @@
+# Environment — NEVER commit this
+.env
+
+# Database — runtime data, not source
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Dependencies
+node_modules/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
