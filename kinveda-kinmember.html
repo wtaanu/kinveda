@@ -214,6 +214,62 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .mentor-card:hover,.mentor-card.selected{border-color:var(--primary);background:#EEF7F5;}
 .mentor-card .mc-name{font-size:13px;font-weight:700;margin-top:6px;}
 .mentor-card .mc-rate{font-size:12px;color:var(--muted);}
+
+/* ─── Hamburger / Mobile Sidebar ─────────────────────────────────────────── */
+.mob-menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;color:var(--text);}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49;opacity:0;transition:opacity .25s;}
+.mob-overlay.open{display:block;opacity:1;}
+
+/* ─── Mobile Responsive (≤768px) ─────────────────────────────────────────── */
+@media(max-width:768px){
+  :root{--sw:0px;}
+  .sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:60;width:270px;}
+  .sidebar.mob-open{transform:translateX(0);}
+  .mob-menu-btn{display:flex;}
+  .mob-overlay{display:block;}
+  .main{margin-left:0!important;}
+  .topbar{padding:0 14px;}
+  .topbar h1{font-size:16px;}
+  .content{padding:14px 12px;}
+
+  /* stats — 2×2 grid on tablet */
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px;}
+
+  /* Two-column grids become single column */
+  .g2,.g3{grid-template-columns:1fr;}
+
+  /* Welcome banner stacks */
+  .welcome{flex-direction:column;gap:14px;padding:20px 18px;}
+  .welcome h2{font-size:18px;}
+  .wbox{width:100%;}
+
+  /* Profile grid */
+  .profile-form .pf-grid{grid-template-columns:1fr;}
+
+  /* Topbar dropdown wider on small screens */
+  .topbar-dropdown{width:calc(100vw - 28px);right:-8px;}
+
+  /* Pay banner */
+  .pay-banner{flex-direction:column;align-items:flex-start;gap:10px;}
+  .pay-btn{width:100%;text-align:center;}
+
+  /* Billing table: horizontal scroll */
+  .bill-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .bill-table{min-width:480px;}
+
+  /* Card padding */
+  .card{padding:16px 14px;}
+  .sub-card{padding:18px 16px;}
+}
+
+/* ─── Extra-small phones (≤420px) ────────────────────────────────────────── */
+@media(max-width:420px){
+  .stats{grid-template-columns:1fr 1fr;}
+  .sc .sv{font-size:20px;}
+  .topbar h1{font-size:14px;}
+  .welcome h2{font-size:16px;}
+  .wbtn{font-size:11px;padding:7px 12px;}
+}
 </style>
 </head>
 <body>
@@ -255,10 +311,16 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 </div>
 
+<!-- Mobile overlay (closes sidebar when tapped) -->
+<div class="mob-overlay" id="mobOverlay" onclick="closeMobSidebar()"></div>
+
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <h1 id="topbarTitle">My Dashboard</h1>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="mob-menu-btn" id="mobMenuBtn" onclick="toggleMobSidebar()" aria-label="Open menu">☰</button>
+      <h1 id="topbarTitle">My Dashboard</h1>
+    </div>
     <div class="topbar-r">
       <div class="topbar-drop-wrap">
         <div class="nb" id="notifBell" onclick="toggleNotifDrop(event)" title="Notifications">🔔<div class="nd" id="notifDot"></div></div>
@@ -586,6 +648,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   buildNotifList();
 });
 
+// ─── Mobile Sidebar ───────────────────────────────────────────────────────────
+function toggleMobSidebar() {
+  document.querySelector('.sidebar').classList.toggle('mob-open');
+  document.getElementById('mobOverlay').classList.toggle('open');
+}
+function closeMobSidebar() {
+  document.querySelector('.sidebar').classList.remove('mob-open');
+  document.getElementById('mobOverlay').classList.remove('open');
+}
+
 // ─── Panel Navigation ─────────────────────────────────────────────────────────
 function showPanel(name, linkEl) {
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
@@ -603,6 +675,8 @@ function showPanel(name, linkEl) {
   if (name === 'payments') renderBilling();
   if (name === 'package') renderPackage();
   if (name === 'story') loadMyTestimonials();
+  // Auto-close sidebar on mobile after navigation
+  if (window.innerWidth <= 768) closeMobSidebar();
 }
 
 // ─── Load Data ────────────────────────────────────────────────────────────────
@@ -767,7 +841,7 @@ function sessionCard(s) {
   return `<div class="si-item" style="flex-direction:column;align-items:flex-start;cursor:default;">
     <div style="display:flex;align-items:center;gap:12px;width:100%;">
       <div class="si-av">🧑‍⚕️</div>
-      <div class="si-info"><h4>${s.mentorName || 'KinMentor'}</h4><p>${s.durationMins || 50} min session</p></div>
+      <div class="si-info"><h4>${KV.esc(s.mentorName || 'KinMentor')}</h4><p>${s.durationMins || 50} min session</p></div>
       <div class="si-meta">
         <div class="si-date">${KV.fmtDate(s.scheduledAt)}</div>
         <div style="margin-top:4px;"><span class="badge ${statusBadge}">${statusLabel}</span></div>
@@ -822,7 +896,7 @@ function renderBilling() {
     return;
   }
 
-  el.innerHTML = `<table class="bill-table">
+  el.innerHTML = `<div class="bill-wrap"><table class="bill-table">
     <thead><tr>
       <th>Date</th><th>Type</th><th>Description</th><th>Status</th><th>Amount</th>
     </tr></thead>
@@ -840,7 +914,7 @@ function renderBilling() {
         <td class="amt">${KV.fmtINR(p.amount)}</td>
       </tr>`;
     }).join('')}</tbody>
-  </table>`;
+  </table></div>`;
 }
 
 function renderPackage() {
@@ -872,8 +946,8 @@ async function loadMentorPackages() {
     el.innerHTML = `<div style="display:flex;align-items:center;gap:14px;border:2px solid var(--primary);border-radius:12px;padding:14px 18px;background:#EEF7F5;margin-bottom:4px;">
       <div style="font-size:28px;">🧑‍⚕️</div>
       <div>
-        <div style="font-size:14px;font-weight:700;">${m.name}</div>
-        <div style="font-size:11px;color:var(--muted);">${m.qualification || ''} · ${m.experienceYears || 0} yrs exp</div>
+        <div style="font-size:14px;font-weight:700;">${KV.esc(m.name)}</div>
+        <div style="font-size:11px;color:var(--muted);">${KV.esc(m.qualification || '')} · ${m.experienceYears || 0} yrs exp</div>
         <div style="font-size:11px;margin-top:3px;color:var(--primary);font-weight:600;">✓ Your assigned KinMentor</div>
       </div>
     </div>`;
@@ -894,7 +968,7 @@ async function loadMentorPackages() {
     <div class="mentor-card-row">${mentors.map(m => `
       <div class="mentor-card" onclick="selectMentorForPkg(this, ${m.id})" data-id="${m.id}">
         <div style="font-size:28px;">🧑‍⚕️</div>
-        <div class="mc-name">${m.name}</div>
+        <div class="mc-name">${KV.esc(m.name)}</div>
         <div class="mc-rate">${m.rateMonthly ? KV.fmtINR(m.rateMonthly) + '/mo' : (m.rate60min ? KV.fmtINR(m.rate60min) + '/hr' : 'Contact admin')}</div>
       </div>`).join('')}
     </div>`;
@@ -920,7 +994,7 @@ function showMentorOffers(m) {
   if (rate30 > 0) {
     html += `<div class="pkg" style="margin-bottom:14px;">
       <h4>30-Min Session</h4>
-      <p>Single focused 30-minute video session with ${m.name}.</p>
+      <p>Single focused 30-minute video session with ${KV.esc(m.name)}.</p>
       <ul><li>Encrypted video call</li><li>Session notes</li><li>Resource library access</li></ul>
       <div class="pkg-price">${KV.fmtINR(rate30)} <span>/ session</span></div>
       <button class="btn-p" onclick="showPanel('sessions',null)">Book a Session →</button>
@@ -929,7 +1003,7 @@ function showMentorOffers(m) {
   if (rate60 > 0) {
     html += `<div class="pkg" style="margin-bottom:14px;">
       <h4>60-Min Session</h4>
-      <p>Full 60-minute deep-dive video session with ${m.name}.</p>
+      <p>Full 60-minute deep-dive video session with ${KV.esc(m.name)}.</p>
       <ul><li>Encrypted video call</li><li>Session notes + homework</li><li>Chat access after session</li></ul>
       <div class="pkg-price">${KV.fmtINR(rate60)} <span>/ session</span></div>
       <button class="btn-p" onclick="showPanel('sessions',null)">Book a Session →</button>

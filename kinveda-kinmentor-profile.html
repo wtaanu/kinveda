@@ -329,13 +329,14 @@
       const data = await res.json();
       if (!data.success) { showDemoProfile(); return; }
 
-      const p = data.profile;
+      // Route returns data.mentor (authenticated) or data.mentor (public) — normalise
+      const p = data.mentor || data.profile;
 
       // Name & title
       document.title = `${p.name} – KinVeda KinMentor`;
       document.getElementById('mentorName').textContent = p.name;
       document.getElementById('mentorRole').textContent =
-        `KinMentor · ${p.experience_years || ''} Years Experience`;
+        `KinMentor · ${p.qualification || ''} · ${p.experienceYears || p.experience_years || 0} Years Experience`;
       document.getElementById('floatCta').textContent = `📅 Book with ${p.name.split(' ')[0]}`;
 
       // Badges
@@ -361,12 +362,24 @@
         tagCloud.appendChild(span);
       });
 
-      // Fees
-      if (p.fee_30min) document.getElementById('fee30').textContent = `₹${p.fee_30min.toLocaleString('en-IN')}`;
-      if (p.fee_60min) document.getElementById('fee60').textContent = `₹${p.fee_60min.toLocaleString('en-IN')}`;
-      if (p.fee_monthly) {
-        document.getElementById('feeMonthly').textContent = `₹${p.fee_monthly.toLocaleString('en-IN')}`;
-        document.getElementById('packagePrice').innerHTML = `₹${p.fee_monthly.toLocaleString('en-IN')}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> / month</span>`;
+      // Fees — normalise old (fee_30min) and new (rate30min) field names
+      const r30 = p.rate30min || p.fee_30min || 0;
+      const r60 = p.rate60min || p.fee_60min || 0;
+      const rMo = p.rateMonthly || p.fee_monthly || 0;
+      const pkgSess = p.packageSessions || 8;
+      const pkgMins = p.packageMins || 50;
+
+      if (r30) document.getElementById('fee30').textContent = `₹${r30.toLocaleString('en-IN')}`;
+      if (r60) document.getElementById('fee60').textContent = `₹${r60.toLocaleString('en-IN')}`;
+      if (rMo) {
+        document.getElementById('feeMonthly').textContent = `₹${rMo.toLocaleString('en-IN')}`;
+        // Update the "8 sessions / bi-weekly" label with actual package data
+        const feeMonthlyEl = document.getElementById('feeMonthly');
+        if (feeMonthlyEl.nextElementSibling) {
+          feeMonthlyEl.nextElementSibling.textContent = `${pkgSess} sessions of ${pkgMins} min / month`;
+        }
+        const pkgPriceEl = document.getElementById('packagePrice');
+        if (pkgPriceEl) pkgPriceEl.innerHTML = `₹${rMo.toLocaleString('en-IN')}<span style="font-size:13px;font-weight:400;color:var(--text-muted)"> / month</span>`;
       }
 
       // Bio
@@ -381,7 +394,9 @@
       }
 
       // RCI license
-      if (p.rci_license) document.getElementById('rciLicense').textContent = `#${p.rci_license}`;
+      const rciLic = p.rciLicense || p.rci_license;
+      const rciEl = document.getElementById('rciLicense');
+      if (rciLic && rciEl) rciEl.textContent = `#${rciLic}`;
 
       // Availability
       if (p.availability) {
@@ -400,11 +415,12 @@
         } catch {}
       }
 
-      // Blog posts
-      if (p.blog_posts && p.blog_posts.length > 0) {
+      // Blog posts — route returns p.posts or p.blog_posts
+      const blogPosts = p.posts || p.blog_posts || [];
+      if (blogPosts.length > 0) {
         const blogContainer = document.getElementById('blogContainer');
         blogContainer.innerHTML = '';
-        p.blog_posts.slice(0, 3).forEach(post => {
+        blogPosts.slice(0, 3).forEach(post => {
           const d = new Date(post.published_at * 1000).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
           blogContainer.innerHTML += `
             <div class="blog-card">
@@ -422,7 +438,7 @@
       }
 
       // Reviews
-      if (p.reviews && p.reviews.length > 0) {
+      if (p.reviews?.length > 0) {
         const reviewsContainer = document.getElementById('reviewsContainer');
         reviewsContainer.innerHTML = '';
         p.reviews.forEach(r => {

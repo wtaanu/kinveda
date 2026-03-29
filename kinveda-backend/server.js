@@ -14,13 +14,14 @@
  */
 require('dotenv').config();
 
-const express     = require('express');
-const helmet      = require('helmet');
-const cors        = require('cors');
+const express      = require('express');
+const helmet       = require('helmet');
+const cors         = require('cors');
+const compression  = require('compression');
 const cookieParser = require('cookie-parser');
-const morgan      = require('morgan');
-const rateLimit   = require('express-rate-limit');
-const path        = require('path');
+const morgan       = require('morgan');
+const rateLimit    = require('express-rate-limit');
+const path         = require('path');
 
 const { initializeSchema, getDb } = require('./config/database');
 const authRoutes         = require('./routes/auth.routes');
@@ -74,17 +75,35 @@ initializeSchema();
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc:  ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "checkout.razorpay.com", "*.razorpay.com"],
-      styleSrc:   ["'self'", "'unsafe-inline'"],
-      imgSrc:     ["'self'", "data:", "*.razorpay.com"],
-      connectSrc: ["'self'", "api.razorpay.com", "*.razorpay.com"],
-      frameSrc:   ["'self'", "*.razorpay.com", "meet.jit.si", "*.jit.si"],
-      objectSrc:  ["'none'"]
+      defaultSrc:    ["'self'"],
+      scriptSrc:     ["'self'", "'unsafe-inline'", "cdnjs.cloudflare.com", "checkout.razorpay.com", "*.razorpay.com"],
+      styleSrc:      ["'self'", "'unsafe-inline'", "fonts.googleapis.com"],
+      fontSrc:       ["'self'", "fonts.gstatic.com", "data:"],
+      imgSrc:        ["'self'", "data:", "blob:", "*.razorpay.com"],
+      connectSrc:    ["'self'", "api.razorpay.com", "*.razorpay.com", "*.jit.si", "wss://*.jit.si"],
+      frameSrc:      ["'self'", "*.razorpay.com", "meet.jit.si", "*.jit.si"],
+      objectSrc:     ["'none'"],
+      baseUri:       ["'self'"],
+      formAction:    ["'self'"],
+      frameAncestors:["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null
     }
   },
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,         // 1 year
+    includeSubDomains: true,
+    preload: true
+  }
 }));
+
+// Extra DAST-required headers not covered by Helmet defaults
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -104,6 +123,9 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// ─── Compression (gzip) ───────────────────────────────────────────────────────
+app.use(compression({ level: 6, threshold: 1024 }));
 
 // ─── Parsers & Logging ────────────────────────────────────────────────────────
 app.use(express.json({ limit: '2mb' }));
@@ -134,9 +156,23 @@ app.use('/api/testimonials',  testimonialRoutes);
 app.use(`${ADMIN_PREFIX}/api`, adminRoutes);
 
 // ─── Static Frontend ──────────────────────────────────────────────────────────
-// Serve frontend HTML files from the parent Code directory
+// Serve frontend HTML files from the parent Code directory.
+// Cache-Control: JS/CSS/images cached 7 days; HTML never cached (always fresh).
 app.use(express.static(path.join(__dirname, '..'), {
-  index: 'kinveda-landing.html'
+  index: 'kinveda-landing.html',
+  setHeaders(res, filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (['.js', '.css', '.png', '.jpg', '.jpeg', '.svg', '.webp', '.ico', '.woff', '.woff2'].includes(ext)) {
+      res.setHeader('Cache-Control', 'public, max-age=604800, immutable'); // 7 days
+    } else if (ext === '.html') {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+    }
+    // Additional DAST-required headers on every response
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  }
 }));
 
 // ─── Health Check ─────────────────────────────────────────────────────────────

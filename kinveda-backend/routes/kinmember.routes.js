@@ -54,7 +54,16 @@ router.get('/profile', requireAuth, requireKinMember, (req, res) => {
 });
 
 // ─── PUT: Update Profile ──────────────────────────────────────────────────────
-router.put('/profile', requireAuth, requireKinMember, (req, res) => {
+router.put('/profile', requireAuth, requireKinMember,
+  [
+    body('name').trim().isLength({ min: 2, max: 120 }).withMessage('Name must be 2–120 chars.'),
+    body('phone').optional({ nullable: true }).trim().isLength({ max: 20 }),
+    body('city').optional({ nullable: true }).trim().isLength({ max: 80 }),
+  ],
+  (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
   const { name, phone, city } = req.body;
   const db = getDb();
   db.prepare('UPDATE users SET name_enc = ?, phone_enc = ?, city_enc = ? WHERE id = ?')

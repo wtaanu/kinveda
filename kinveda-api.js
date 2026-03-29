@@ -72,6 +72,10 @@ const KV = (() => {
   async function signOut() {
     await post('/api/auth/signout', {}).catch(() => {});
     clearAuth();
+    // GDPR: clear any locally stored photo/preferences on signout
+    try {
+      localStorage.removeItem('kv_photo');
+    } catch (e) { /* ignore */ }
     window.location.href = 'kinveda-landing.html';
   }
 
@@ -99,6 +103,20 @@ const KV = (() => {
     }
     // Navigate away — replace() removes KinVeda from browser history
     window.location.replace('https://www.google.com/search?q=weather+today');
+  }
+
+  // ─── XSS Sanitiser (SAST) ────────────────────────────────────────────────────
+  // Use esc() for ALL user-supplied text inserted via innerHTML / template literals.
+  // This prevents stored/reflected XSS if a mentor bio or name contains HTML tags.
+  function esc(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
   }
 
   // ─── Date Formatter (IST) ─────────────────────────────────────────────────────
@@ -307,7 +325,12 @@ const KV = (() => {
     `;
     document.head.appendChild(style);
 
-    const user = getUser();
+    // GDPR: Never pre-fill user's personal data in shared/landing page chat widget.
+    // Only pre-fill on authenticated portal pages where the user is already signed in.
+    const isPortal = ['kinveda-kinmember.html', 'kinveda-kinmentor.html']
+      .some(p => window.location.pathname.includes(p));
+    const user = isPortal ? getUser() : null;
+
     const btn  = document.createElement('div');
     btn.innerHTML = `
       <button id="kv-chat-btn" onclick="KV.toggleChat()" title="Chat with KinVeda">💬<span class="kv-notif">1</span></button>
@@ -321,11 +344,11 @@ const KV = (() => {
           <div class="kv-chat-msg bot">👋 Hi there! How can we help you today? Leave your message and our team will reach out shortly.</div>
         </div>
         <div class="kv-chat-name-row" id="kvNameRow">
-          <input id="kvChatName" placeholder="Your name (optional)" value="${user ? (user.name || '') : ''}">
-          <input id="kvChatEmail" type="email" placeholder="Email (optional)" value="${user ? (user.email || '') : ''}">
+          <input id="kvChatName" placeholder="Your name (optional)" autocomplete="off">
+          <input id="kvChatEmail" type="email" placeholder="Email (optional)" autocomplete="off">
         </div>
         <div class="kv-chat-footer">
-          <input id="kvChatInput" placeholder="Type your message..." onkeydown="if(event.key==='Enter')KV.sendChat()">
+          <input id="kvChatInput" placeholder="Type your message..." onkeydown="if(event.key==='Enter')KV.sendChat()" autocomplete="off">
           <button id="kvChatSendBtn" onclick="KV.sendChat()">Send</button>
         </div>
       </div>
@@ -392,6 +415,55 @@ const KV = (() => {
     }
   }
 
+  // ─── GDPR Cookie Consent Banner ───────────────────────────────────────────────
+  function injectCookieConsent() {
+    // Skip if already decided or if on portal pages (authenticated users already consented at signup)
+    const portalPages = ['kinveda-kinmember.html', 'kinveda-kinmentor.html', 'kinveda-admin'];
+    const isPortalPage = portalPages.some(p => window.location.pathname.includes(p));
+    if (isPortalPage) return;
+    if (localStorage.getItem('kv_cookie_consent')) return;
+
+    const style = document.createElement('style');
+    style.id = 'kv-gdpr-style';
+    style.textContent = `
+      #kv-cookie-banner{position:fixed;bottom:0;left:0;right:0;z-index:999999;background:#1A2E2A;color:#E8F4F2;padding:18px 24px;display:flex;flex-wrap:wrap;align-items:center;gap:14px;font-size:13.5px;line-height:1.55;box-shadow:0 -4px 24px rgba(0,0,0,.28);}
+      #kv-cookie-banner a{color:#7DD3C8;text-decoration:underline;}
+      #kv-cookie-banner p{margin:0;flex:1;min-width:240px;}
+      .kv-cookie-btns{display:flex;gap:10px;flex-shrink:0;}
+      .kv-cookie-accept{background:#2D7D6F;color:white;border:none;padding:9px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;transition:background .2s;}
+      .kv-cookie-accept:hover{background:#1E5C51;}
+      .kv-cookie-decline{background:transparent;color:#A8C5C0;border:1px solid #4A7A72;padding:9px 18px;border-radius:8px;font-size:13px;cursor:pointer;transition:all .2s;}
+      .kv-cookie-decline:hover{background:#243330;color:#E8F4F2;}
+      @media(max-width:600px){#kv-cookie-banner{padding:14px 16px;font-size:13px;}.kv-cookie-btns{width:100%;}.kv-cookie-accept,.kv-cookie-decline{flex:1;text-align:center;}}
+    `;
+    document.head.appendChild(style);
+
+    const banner = document.createElement('div');
+    banner.id = 'kv-cookie-banner';
+    banner.setAttribute('role', 'dialog');
+    banner.setAttribute('aria-label', 'Cookie consent');
+    banner.innerHTML = `
+      <p>🍪 KinVeda uses essential cookies to keep your session secure and improve your experience. We do <strong>not</strong> share your personal data with advertisers. By continuing, you agree to our <a href="/kinveda-privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</p>
+      <div class="kv-cookie-btns">
+        <button class="kv-cookie-accept" onclick="KV._cookieAccept()">Accept &amp; Continue</button>
+        <button class="kv-cookie-decline" onclick="KV._cookieDecline()">Essential Only</button>
+      </div>
+    `;
+    document.body.appendChild(banner);
+  }
+
+  function _cookieAccept() {
+    localStorage.setItem('kv_cookie_consent', JSON.stringify({ decision: 'accepted', ts: Date.now() }));
+    const b = document.getElementById('kv-cookie-banner');
+    if (b) { b.style.transform = 'translateY(110%)'; b.style.transition = 'transform .4s ease'; setTimeout(() => b.remove(), 420); }
+  }
+
+  function _cookieDecline() {
+    localStorage.setItem('kv_cookie_consent', JSON.stringify({ decision: 'essential-only', ts: Date.now() }));
+    const b = document.getElementById('kv-cookie-banner');
+    if (b) { b.style.transform = 'translateY(110%)'; b.style.transition = 'transform .4s ease'; setTimeout(() => b.remove(), 420); }
+  }
+
   // ─── Auto-init ────────────────────────────────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     injectFavicon();
@@ -402,6 +474,8 @@ const KV = (() => {
     if (!isPortalPage) {
       injectChatWidget();
     }
+    // GDPR: cookie consent banner on all public-facing pages
+    injectCookieConsent();
   });
 
   // ─── Expose Public API ────────────────────────────────────────────────────────
@@ -428,6 +502,10 @@ const KV = (() => {
     toggleChat,
     sendChat,
     injectFavicon,
-    injectChatWidget
+    injectChatWidget,
+    injectCookieConsent,
+    _cookieAccept,
+    _cookieDecline,
+    esc
   };
 })();

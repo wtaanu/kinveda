@@ -167,7 +167,25 @@ router.get('/profile', requireAuth, requireKinMentor, (req, res) => {
   });
 });
 
-router.put('/profile', requireAuth, requireKinMentor, (req, res) => {
+router.put('/profile', requireAuth, requireKinMentor,
+  [
+    body('name').trim().isLength({ min: 2, max: 120 }).withMessage('Name must be 2–120 chars.'),
+    body('phone').optional({ nullable: true }).trim().isLength({ max: 20 }),
+    body('city').optional({ nullable: true }).trim().isLength({ max: 80 }),
+    body('bio').optional({ nullable: true }).trim().isLength({ max: 3000 }),
+    body('approach').optional({ nullable: true }).trim().isLength({ max: 3000 }),
+    body('qualification').optional({ nullable: true }).trim().isLength({ max: 500 }),
+    body('experienceYears').optional({ nullable: true }).isInt({ min: 0, max: 60 }),
+    body('rate30min').optional({ nullable: true }).isFloat({ min: 0 }),
+    body('rate60min').optional({ nullable: true }).isFloat({ min: 0 }),
+    body('rateMonthly').optional({ nullable: true }).isFloat({ min: 0 }),
+    body('packageSessions').optional({ nullable: true }).isInt({ min: 1, max: 60 }),
+    body('packageMins').optional({ nullable: true }).isInt({ min: 15, max: 180 }),
+  ],
+  (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
   const {
     name, phone, city, rciLicense, qualification, bio, approach,
     specializations, languages, experienceYears,

@@ -167,6 +167,56 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 .act-btn.complete{background:var(--green);color:white;}
 .rec-url-input{padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;font-size:12px;flex:1;}
 .rec-url-input:focus{outline:none;border-color:var(--primary);}
+
+/* ─── Hamburger / Mobile Sidebar ─────────────────────────────────────────── */
+.mob-menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;color:var(--text);}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49;opacity:0;transition:opacity .25s;}
+.mob-overlay.open{display:block;opacity:1;}
+
+/* ─── Mobile Responsive (≤768px) ─────────────────────────────────────────── */
+@media(max-width:768px){
+  :root{--sw:0px;}
+  .sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:60;width:270px;}
+  .sidebar.mob-open{transform:translateX(0);}
+  .mob-menu-btn{display:flex;}
+  .mob-overlay{display:block;}
+  .main{margin-left:0!important;}
+  .topbar{padding:0 14px;}
+  .topbar h1{font-size:16px;}
+  .content{padding:14px 12px;}
+
+  /* stats — 2×2 on tablet */
+  .stats{grid-template-columns:repeat(2,1fr);gap:10px;}
+
+  /* two/three-column grids → single column */
+  .g2,.g3{grid-template-columns:1fr;}
+
+  /* Welcome banner stacks */
+  .welcome{flex-direction:column;gap:14px;padding:20px 18px;}
+  .welcome h2{font-size:18px;}
+  .wbox{width:100%;}
+
+  /* Profile grid */
+  .pf-grid{grid-template-columns:1fr!important;}
+
+  /* Availability day rows → vertical */
+  .day-row{flex-direction:column;align-items:flex-start;}
+  .day-row .day-label{min-width:unset;margin-bottom:6px;}
+
+  /* Topbar view-btn hidden on very small screens */
+  .view-btn{display:none;}
+
+  /* Card padding */
+  .card{padding:16px 14px;}
+}
+
+/* ─── Extra-small phones (≤420px) ────────────────────────────────────────── */
+@media(max-width:420px){
+  .stats{grid-template-columns:1fr 1fr;}
+  .sc .sv{font-size:20px;}
+  .topbar h1{font-size:14px;}
+  .welcome h2{font-size:16px;}
+}
 </style>
 </head>
 <body>
@@ -186,7 +236,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
     <a href="#" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Messages</a>
     <a href="#" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Assign Homework</a>
     <div class="sb-sec">Profile & Growth</div>
-    <a href="kinveda-kinmentor-profile.html" class="sb-item"><span class="icon">👤</span> My Public Profile</a>
+    <a href="#" class="sb-item" onclick="openMyProfile()"><span class="icon">👤</span> My Public Profile</a>
     <a href="#" class="sb-item" onclick="showPanel('blog',this)"><span class="icon">✍️</span> Blog Posts</a>
     <a href="#" class="sb-item" onclick="showPanel('reviews',this)"><span class="icon">⭐</span> Reviews</a>
     <a href="#" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">⚙️</span> Profile Editor</a>
@@ -205,13 +255,19 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
 </div>
 
+<!-- Mobile overlay (closes sidebar when tapped) -->
+<div class="mob-overlay" id="mobOverlay" onclick="closeMobSidebar()"></div>
+
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
-    <h1 id="topbarTitle">KinMentor Dashboard</h1>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="mob-menu-btn" id="mobMenuBtn" onclick="toggleMobSidebar()" aria-label="Open menu">☰</button>
+      <h1 id="topbarTitle">KinMentor Dashboard</h1>
+    </div>
     <div class="topbar-r">
       <div class="nb">🔔<div class="nd"></div></div>
-      <a href="kinveda-kinmentor-profile.html" class="view-btn">View Public Profile →</a>
+      <button class="view-btn" onclick="openMyProfile()">View Public Profile →</button>
     </div>
   </div>
   <div class="content">
@@ -502,6 +558,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadAvailability();
 });
 
+// ─── Mobile Sidebar ───────────────────────────────────────────────────────────
+function toggleMobSidebar() {
+  document.querySelector('.sidebar').classList.toggle('mob-open');
+  document.getElementById('mobOverlay').classList.toggle('open');
+}
+function closeMobSidebar() {
+  document.querySelector('.sidebar').classList.remove('mob-open');
+  document.getElementById('mobOverlay').classList.remove('open');
+}
+
 function showPanel(name, el) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
@@ -510,6 +576,8 @@ function showPanel(name, el) {
   const titles={dashboard:'KinMentor Dashboard',members:'My KinMembers',sessions:'Session Queue',notes:'Case Notes',chat:'Messages',homework:'Assign Homework',blog:'Blog Posts',reviews:'Reviews',profile:'Profile Editor',fees:'Session Fees',earnings:'Revenue Dashboard',availability:'My Availability'};
   document.getElementById('topbarTitle').textContent=titles[name]||'Dashboard';
   if (name === 'earnings') loadRevenue();
+  // Auto-close sidebar on mobile after navigation
+  if (window.innerWidth <= 768) closeMobSidebar();
 }
 
 async function loadDashboard() {
@@ -609,7 +677,7 @@ function renderMembers() {
   if (!membersData.length) { el.innerHTML='<p style="font-size:13px;color:var(--muted);">No KinMembers assigned yet.</p>'; if(rec) rec.innerHTML='<p style="font-size:13px;color:var(--muted);">No KinMembers yet.</p>'; return; }
   const html = membersData.map(m => `<div class="mi">
     <div class="mi-av">😊</div>
-    <div class="mi-info"><h4>${m.name}</h4><p>${m.city||''}${m.familyStructure?` · ${m.familyStructure}`:''}</p></div>
+    <div class="mi-info"><h4>${KV.esc(m.name)}</h4><p>${KV.esc(m.city||'')}${m.familyStructure?` · ${KV.esc(m.familyStructure)}`:''}</p></div>
     <div class="mi-meta">
       ${m.familyStructure?`<span class="tag tn">${m.familyStructure}</span>`:''}
       ${m.childStatus==='only_child'?`<span class="tag to">Only Child</span>`:''}
@@ -617,7 +685,7 @@ function renderMembers() {
     </div>
   </div>`).join('');
   el.innerHTML = html;
-  if (rec) rec.innerHTML = membersData.slice(0,3).map(m => `<div class="mi"><div class="mi-av">😊</div><div class="mi-info"><h4>${m.name}</h4><p>${m.familyStructure||''}</p></div></div>`).join('');
+  if (rec) rec.innerHTML = membersData.slice(0,3).map(m => `<div class="mi"><div class="mi-av">😊</div><div class="mi-info"><h4>${KV.esc(m.name)}</h4><p>${KV.esc(m.familyStructure||'')}</p></div></div>`).join('');
 }
 
 function renderSessions() {
@@ -635,7 +703,7 @@ function renderSessions() {
     return `<div class="sess-item" style="${compact?'':'flex-direction:column;align-items:flex-start;'}">
       <div style="display:flex;align-items:center;gap:12px;width:100%;">
         <div class="mi-av">😊</div>
-        <div class="sess-info"><h4>${s.memberName}</h4><p>${s.durationMins} min${s.familyStructure?' · '+s.familyStructure:''}</p></div>
+        <div class="sess-info"><h4>${KV.esc(s.memberName)}</h4><p>${s.durationMins} min${s.familyStructure?' · '+KV.esc(s.familyStructure):''}</p></div>
         <div class="sess-meta">
           <div style="font-size:12px;font-weight:600;color:var(--primary);">${KV.fmtDate(s.scheduledAt)}</div>
           <div style="margin-top:3px;"><span class="badge ${s.status==='completed'?'b-completed':'b-upcoming'}">${s.status}</span></div>
@@ -710,7 +778,7 @@ function renderBlog() {
 }
 
 function populateMemberDropdowns() {
-  const opts = membersData.map(m=>`<option value="${m.id}">${m.name}</option>`).join('');
+  const opts = membersData.map(m=>`<option value="${m.id}">${KV.esc(m.name)}</option>`).join('');
   ['notesMemberSel','chatMemberSel','hw-member'].forEach(id=>{ const el=document.getElementById(id); if(el) el.innerHTML=`<option value="">Select...</option>`+opts; });
 }
 
@@ -1000,6 +1068,11 @@ function timeToMins(t) {
   if (!t) return 0;
   const [h, m] = t.split(':').map(Number);
   return h * 60 + m;
+}
+
+function openMyProfile() {
+  const uid = userData?.id;
+  window.open(`kinveda-kinmentor-profile.html${uid ? '?id=' + uid : ''}`, '_blank');
 }
 
 // Load profile data for the forms
