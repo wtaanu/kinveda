@@ -284,23 +284,85 @@
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  function validateEmail(email) {
+    // RFC-5322 simplified — rejects obviously bad formats
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
+  function validatePhone(phone) {
+    // Allow empty, or digits/spaces/hyphens/parens/+ — min 7 digits
+    if (!phone) return true;
+    const digits = phone.replace(/\D/g, '');
+    return digits.length >= 7 && digits.length <= 15;
+  }
+
+  function passwordStrengthScore(pw) {
+    let s = 0;
+    if (pw.length >= 8)          s++;
+    if (/[A-Z]/.test(pw))        s++;
+    if (/[0-9]/.test(pw))        s++;
+    if (/[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }
+
   async function handleSignup(e) {
     e.preventDefault();
-    const password = document.getElementById('password').value;
-    const confirm  = document.getElementById('confirmPassword').value;
-    if (password !== confirm) { showError('Passwords do not match.'); return; }
+    document.getElementById('errorMsg').classList.remove('show');
+
+    const nameVal     = document.getElementById('name').value.trim();
+    const emailVal    = document.getElementById('email').value.trim();
+    const phoneVal    = document.getElementById('phone').value.trim();
+    const password    = document.getElementById('password').value;
+    const confirm     = document.getElementById('confirmPassword').value;
+
+    // ── Client-side validation ──────────────────────────────────────────
+    if (nameVal.length < 2) {
+      showError('Please enter your full name (at least 2 characters).');
+      document.getElementById('name').focus();
+      return;
+    }
+    if (nameVal.length > 120) {
+      showError('Name is too long (maximum 120 characters).');
+      document.getElementById('name').focus();
+      return;
+    }
+    if (!validateEmail(emailVal)) {
+      showError('Please enter a valid email address (e.g. you@example.com).');
+      document.getElementById('email').focus();
+      return;
+    }
+    if (phoneVal && !validatePhone(phoneVal)) {
+      showError('Phone number looks invalid. Please enter 7–15 digits (spaces, hyphens, and + allowed).');
+      document.getElementById('phone').focus();
+      return;
+    }
+    if (password.length < 8) {
+      showError('Password must be at least 8 characters long.');
+      document.getElementById('password').focus();
+      return;
+    }
+    if (passwordStrengthScore(password) < 3) {
+      showError('Password is too weak. Include at least one uppercase letter, one number, and one special character (e.g. !, @, #).');
+      document.getElementById('password').focus();
+      return;
+    }
+    if (password !== confirm) {
+      showError('Passwords do not match. Please re-enter your password.');
+      document.getElementById('confirmPassword').focus();
+      return;
+    }
+    // ── End validation ──────────────────────────────────────────────────
 
     const btn = document.getElementById('submitBtn');
     btn.classList.add('loading');
     btn.disabled = true;
-    document.getElementById('errorMsg').classList.remove('show');
 
     const body = {
-      name:     document.getElementById('name').value.trim(),
-      email:    document.getElementById('email').value.trim(),
+      name:     nameVal,
+      email:    emailVal,
       password,
       role:     selectedRole,
-      phone:    document.getElementById('phone').value.trim() || undefined,
+      phone:    phoneVal || undefined,
       city:     document.getElementById('city').value.trim() || undefined
     };
 

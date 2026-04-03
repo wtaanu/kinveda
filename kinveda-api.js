@@ -62,10 +62,34 @@ const KV = (() => {
   const del   = (path)       => apiFetch(path, { method: 'DELETE' });
 
   // ─── Auth Guard ───────────────────────────────────────────────────────────────
+  // Decodes JWT payload without a library (base64url → JSON).
+  function _jwtExpired(token) {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.exp ? payload.exp * 1000 < Date.now() : false;
+    } catch { return false; }
+  }
+
   function requireAuth(expectedRole) {
-    const user = getUser();
-    if (!user || !getToken()) { window.location.href = 'kinveda-signin.html'; return null; }
-    if (expectedRole && user.role !== expectedRole) { window.location.href = 'kinveda-signin.html'; return null; }
+    const user  = getUser();
+    const token = getToken();
+
+    // No credentials at all → sign in
+    if (!user || !token) { window.location.href = 'kinveda-signin.html'; return null; }
+
+    // Token expired locally → clear stale data and sign in
+    if (_jwtExpired(token)) {
+      clearAuth();
+      localStorage.removeItem('kv_photo');
+      window.location.href = 'kinveda-signin.html';
+      return null;
+    }
+
+    // Wrong role for this portal
+    if (expectedRole && user.role !== expectedRole) {
+      window.location.href = 'kinveda-signin.html';
+      return null;
+    }
     return user;
   }
 

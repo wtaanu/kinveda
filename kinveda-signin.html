@@ -225,22 +225,43 @@
     }
   })();
 
-  // Auto-redirect if already signed in
+  // ─── Stale session cleanup + auto-redirect ──────────────────────────────────
+  // Decodes JWT expiry without a library
+  function _tokenExpired(token) {
+    try {
+      const p = JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
+      return p.exp ? p.exp * 1000 < Date.now() : false;
+    } catch { return true; } // treat unreadable as expired
+  }
+
   const existingToken = localStorage.getItem('kv_token');
   const existingUser  = localStorage.getItem('kv_user');
+
   if (existingToken && existingUser) {
-    try {
-      const u = JSON.parse(existingUser);
-      if (u && u.role) {
-        if (u.role === 'admin') {
-          // Admin: do not auto-redirect from login page to avoid exposing admin path in history
-        } else if (u.role === 'kinmentor') {
-          window.location.replace('kinveda-kinmentor.html');
-        } else {
-          window.location.replace('kinveda-kinmember.html');
+    // If token is expired, wipe it so the user isn't silently stuck
+    if (_tokenExpired(existingToken)) {
+      localStorage.removeItem('kv_token');
+      localStorage.removeItem('kv_user');
+      localStorage.removeItem('kv_photo');
+      // Show subtle hint
+      document.addEventListener('DOMContentLoaded', () => {
+        showError('Your previous session has expired. Please sign in again.');
+      });
+    } else {
+      // Valid token — skip sign-in and go straight to portal
+      try {
+        const u = JSON.parse(existingUser);
+        if (u && u.role) {
+          if (u.role === 'admin') {
+            // Admin: do not auto-redirect (avoid exposing admin path in history)
+          } else if (u.role === 'kinmentor') {
+            window.location.replace('kinveda-kinmentor.html');
+          } else {
+            window.location.replace('kinveda-kinmember.html');
+          }
         }
-      }
-    } catch (e) { /* ignore */ }
+      } catch (e) { /* ignore bad JSON */ }
+    }
   }
 </script>
 <script src="kinveda-api.js"></script>
