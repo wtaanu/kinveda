@@ -217,8 +217,8 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
 /* ─── Hamburger / Mobile Sidebar ─────────────────────────────────────────── */
 .mob-menu-btn{display:none;background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px;color:var(--text);}
-.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49;opacity:0;transition:opacity .25s;}
-.mob-overlay.open{display:block;opacity:1;}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:49;opacity:0;transition:opacity .25s;pointer-events:none;}
+.mob-overlay.open{display:block;opacity:1;pointer-events:auto;}
 
 /* ─── Mobile Responsive (≤768px) ─────────────────────────────────────────── */
 @media(max-width:768px){
@@ -226,7 +226,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   .sidebar{transform:translateX(-100%);transition:transform .28s cubic-bezier(.4,0,.2,1);z-index:60;width:270px;}
   .sidebar.mob-open{transform:translateX(0);}
   .mob-menu-btn{display:flex;}
-  .mob-overlay{display:block;}
+  .mob-overlay{display:block;pointer-events:none;}
   .main{margin-left:0!important;}
   .topbar{padding:0 14px;}
   .topbar h1{font-size:16px;}
