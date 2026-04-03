@@ -387,23 +387,19 @@
         return;
       }
 
-      localStorage.setItem('kv_token', data.accessToken);
-      localStorage.setItem('kv_user', JSON.stringify(data.user));
-
+      // Do NOT auto-login — require explicit sign-in for security
       document.getElementById('formCard').classList.remove('show');
       const sc = document.getElementById('successCard');
       sc.classList.add('show');
       document.getElementById('successMsg').textContent =
-        `Welcome, ${data.user.name}! Your account is ready.${
-          data.user.role === 'kinmentor'
-            ? ' Your profile will be reviewed and verified by our team before going live.'
-            : ' You can now access your wellness dashboard.'
-        }`;
+        data.user.role === 'kinmentor'
+          ? `Welcome, ${data.user.name}! Your account has been created. Our team will review your credentials before activating your profile. Please sign in to access your dashboard.`
+          : `Welcome, ${data.user.name}! Your account is ready. Please sign in to access your wellness dashboard.`;
+      document.getElementById('dashboardBtn').textContent = 'Sign In →';
+      document.getElementById('dashboardBtn').href = 'kinveda-signin.html';
       setTimeout(() => {
-        window.location.href = data.user.role === 'kinmentor'
-          ? 'kinveda-kinmentor.html'
-          : 'kinveda-kinmember.html';
-      }, 2500);
+        window.location.href = 'kinveda-signin.html';
+      }, 3000);
     } catch (err) {
       showError('Connection error. Is the server running?');
     } finally {

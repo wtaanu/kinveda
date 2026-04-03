@@ -229,22 +229,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
   <div class="sb-nav">
     <div class="sb-sec">My Practice</div>
-    <a href="#" class="sb-item active" onclick="showPanel('dashboard',this)"><span class="icon">🏠</span> Dashboard</a>
-    <a href="#" class="sb-item" onclick="showPanel('members',this)"><span class="icon">👥</span> My KinMembers <span class="badge" id="membersCount">0</span></a>
-    <a href="#" class="sb-item" onclick="showPanel('sessions',this)"><span class="icon">📅</span> Session Queue</a>
-    <a href="#" class="sb-item" onclick="showPanel('notes',this)"><span class="icon">📝</span> Case Notes</a>
-    <a href="#" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Messages</a>
-    <a href="#" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Assign Homework</a>
+    <a href="javascript:void(0)" class="sb-item active" onclick="showPanel('dashboard',this)"><span class="icon">🏠</span> Dashboard</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('members',this)"><span class="icon">👥</span> My KinMembers <span class="badge" id="membersCount">0</span></a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('sessions',this)"><span class="icon">📅</span> Session Queue</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('notes',this)"><span class="icon">📝</span> Case Notes</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Messages</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Assign Homework</a>
     <div class="sb-sec">Profile & Growth</div>
-    <a href="#" class="sb-item" onclick="openMyProfile()"><span class="icon">👤</span> My Public Profile</a>
-    <a href="#" class="sb-item" onclick="showPanel('blog',this)"><span class="icon">✍️</span> Blog Posts</a>
-    <a href="#" class="sb-item" onclick="showPanel('reviews',this)"><span class="icon">⭐</span> Reviews</a>
-    <a href="#" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">⚙️</span> Profile Editor</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="openMyProfile()"><span class="icon">👤</span> My Public Profile</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('blog',this)"><span class="icon">✍️</span> Blog Posts</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('reviews',this)"><span class="icon">⭐</span> Reviews</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">⚙️</span> Profile Editor</a>
     <div class="sb-sec">Schedule & Earnings</div>
-    <a href="#" class="sb-item" onclick="showPanel('availability',this)"><span class="icon">🗓️</span> My Availability</a>
-    <a href="#" class="sb-item" onclick="showPanel('fees',this)"><span class="icon">💰</span> Session Fees</a>
-    <a href="#" class="sb-item" onclick="showPanel('earnings',this)"><span class="icon">📊</span> Revenue Dashboard</a>
-    <a href="#" class="sb-item" onclick="KV.signOut()"><span class="icon">↩️</span> Sign Out</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('availability',this)"><span class="icon">🗓️</span> My Availability</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('fees',this)"><span class="icon">💰</span> Session Fees</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('earnings',this)"><span class="icon">📊</span> Revenue Dashboard</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="KV.signOut()"><span class="icon">↩️</span> Sign Out</a>
   </div>
   <div class="sb-user">
     <div class="sb-av">👩‍⚕️</div>
@@ -293,21 +293,21 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       </div>
       <div class="g2">
         <div class="card">
-          <div class="card-h"><h3>📅 Today's Sessions</h3><a href="#" onclick="showPanel('sessions',null)">Full queue</a></div>
+          <div class="card-h"><h3>📅 Today's Sessions</h3><a href="javascript:void(0)" onclick="showPanel('sessions',null)">Full queue</a></div>
           <div id="todaySessions"><div class="loading-state">Loading...</div></div>
         </div>
         <div class="card">
-          <div class="card-h"><h3>👥 Recent KinMembers</h3><a href="#" onclick="showPanel('members',null)">View all</a></div>
+          <div class="card-h"><h3>👥 Recent KinMembers</h3><a href="javascript:void(0)" onclick="showPanel('members',null)">View all</a></div>
           <div id="recentMembers"><div class="loading-state">Loading...</div></div>
         </div>
       </div>
       <div class="g2">
         <div class="card">
-          <div class="card-h"><h3>⭐ Recent Reviews</h3><a href="#" onclick="showPanel('reviews',null)">All reviews</a></div>
+          <div class="card-h"><h3>⭐ Recent Reviews</h3><a href="javascript:void(0)" onclick="showPanel('reviews',null)">All reviews</a></div>
           <div id="recentReviews"><div class="loading-state">Loading...</div></div>
         </div>
         <div class="card">
-          <div class="card-h"><h3>💰 Quick Fee Overview</h3><a href="#" onclick="showPanel('fees',null)">Edit fees</a></div>
+          <div class="card-h"><h3>💰 Quick Fee Overview</h3><a href="javascript:void(0)" onclick="showPanel('fees',null)">Edit fees</a></div>
           <div id="feeOverview"></div>
         </div>
       </div>
@@ -552,7 +552,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('sbName').textContent = userData.name || 'KinMentor';
   document.getElementById('welcomeName').textContent = `Good day, ${userData.name || 'KinMentor'} 👋`;
   populateCopyMonthSelect();
-  await Promise.all([loadDashboard(), loadMembers(), loadSessions(), loadReviews(), loadBlog()]);
+  await Promise.all([loadDashboard(), loadMembers(), loadSessions(), loadReviews(), loadBlog(), loadProfile()]);
   populateMemberDropdowns();
   initAvailGrid();
   loadAvailability();
@@ -576,6 +576,7 @@ function showPanel(name, el) {
   const titles={dashboard:'KinMentor Dashboard',members:'My KinMembers',sessions:'Session Queue',notes:'Case Notes',chat:'Messages',homework:'Assign Homework',blog:'Blog Posts',reviews:'Reviews',profile:'Profile Editor',fees:'Session Fees',earnings:'Revenue Dashboard',availability:'My Availability'};
   document.getElementById('topbarTitle').textContent=titles[name]||'Dashboard';
   if (name === 'earnings') loadRevenue();
+  if (name === 'profile' || name === 'fees') loadProfile();
   // Auto-close sidebar on mobile after navigation
   if (window.innerWidth <= 768) closeMobSidebar();
 }
@@ -606,9 +607,10 @@ async function loadMembers() {
 }
 
 async function loadProfile() {
+  try {
   const res = await KV.get('/api/kinmentor/profile');
   if (!res) return;
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!data.success) return;
   profileData = data.profile;
   document.getElementById('sbName').textContent = profileData.name||'KinMentor';
@@ -641,6 +643,7 @@ async function loadProfile() {
     <div class="fee-row"><label>60 min</label><div class="fee-inp">₹${profileData.rate60min||0}</div></div>
     <div class="fee-row"><label>Monthly Package</label><div class="fee-inp">₹${profileData.rateMonthly||0} / ${sess} sessions (${mins} min each)</div></div>
   `;
+  } catch(e) { console.error('[KinVeda] loadProfile error:', e); }
 }
 
 async function loadSessions() {
@@ -1075,8 +1078,7 @@ function openMyProfile() {
   window.open(`kinveda-kinmentor-profile.html${uid ? '?id=' + uid : ''}`, '_blank');
 }
 
-// Load profile data for the forms
-loadProfile();
+// loadProfile() is called inside DOMContentLoaded after requireAuth passes.
 </script>
 </body>
 </html>

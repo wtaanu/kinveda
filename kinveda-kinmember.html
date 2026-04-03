@@ -282,20 +282,20 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
   </div>
   <div class="sb-nav">
     <div class="sb-sec">My Space</div>
-    <a href="#" class="sb-item active" onclick="showPanel('dashboard',this)"><span class="icon">🏠</span> Dashboard</a>
-    <a href="#" class="sb-item" onclick="showPanel('sessions',this)"><span class="icon">📅</span> My Sessions <span class="badge" id="sessCount">0</span></a>
-    <a href="#" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Message KinMentor</a>
-    <a href="#" class="sb-item" onclick="showPanel('safety',this)"><span class="icon">🛡️</span> My Safety Plan</a>
-    <a href="#" class="sb-item" onclick="showPanel('journey',this)"><span class="icon">🗺️</span> My Journey</a>
+    <a href="javascript:void(0)" class="sb-item active" onclick="showPanel('dashboard',this)"><span class="icon">🏠</span> Dashboard</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('sessions',this)"><span class="icon">📅</span> My Sessions <span class="badge" id="sessCount">0</span></a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('chat',this)"><span class="icon">💬</span> Message KinMentor</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('safety',this)"><span class="icon">🛡️</span> My Safety Plan</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('journey',this)"><span class="icon">🗺️</span> My Journey</a>
     <div class="sb-sec">Resources</div>
-    <a href="#" class="sb-item" onclick="showPanel('resources',this)"><span class="icon">📚</span> Resource Library</a>
-    <a href="#" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Homework <span class="badge" id="hwCount">0</span></a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('resources',this)"><span class="icon">📚</span> Resource Library</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('homework',this)"><span class="icon">✏️</span> Homework <span class="badge" id="hwCount">0</span></a>
     <div class="sb-sec">Account</div>
-    <a href="#" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">👤</span> My Profile</a>
-    <a href="#" class="sb-item" onclick="showPanel('payments',this)"><span class="icon">💳</span> Billing History</a>
-    <a href="#" class="sb-item" onclick="showPanel('package',this)"><span class="icon">📦</span> My Package</a>
-    <a href="#" class="sb-item" onclick="showPanel('story',this)"><span class="icon">⭐</span> Share My Story</a>
-    <a href="#" class="sb-item" onclick="KV.signOut()"><span class="icon">↩️</span> Sign Out</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('profile',this)"><span class="icon">👤</span> My Profile</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('payments',this)"><span class="icon">💳</span> Billing History</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('package',this)"><span class="icon">📦</span> My Package</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="showPanel('story',this)"><span class="icon">⭐</span> Share My Story</a>
+    <a href="javascript:void(0)" class="sb-item" onclick="KV.signOut()"><span class="icon">↩️</span> Sign Out</a>
   </div>
   <div class="sos-side">
     <h5>🆘 Need immediate help?</h5>
@@ -369,7 +369,7 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       </div>
       <div class="g2">
         <div class="card">
-          <div class="card-h"><h3>📅 Upcoming Sessions</h3><a href="#" onclick="showPanel('sessions',null)">View all</a></div>
+          <div class="card-h"><h3>📅 Upcoming Sessions</h3><a href="javascript:void(0)" onclick="showPanel('sessions',null)">View all</a></div>
           <div id="upcomingSessionsSnap"><div class="loading-state">Loading...</div></div>
         </div>
         <div class="card">
@@ -379,11 +379,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       </div>
       <div class="g2">
         <div class="card">
-          <div class="card-h"><h3>📚 Pinned Resources</h3><a href="#" onclick="showPanel('resources',null)">Browse all</a></div>
+          <div class="card-h"><h3>📚 Pinned Resources</h3><a href="javascript:void(0)" onclick="showPanel('resources',null)">Browse all</a></div>
           <div id="resourcesSnap"></div>
         </div>
         <div class="card">
-          <div class="card-h"><h3>✏️ Pending Homework</h3><a href="#" onclick="showPanel('homework',null)">View all</a></div>
+          <div class="card-h"><h3>✏️ Pending Homework</h3><a href="javascript:void(0)" onclick="showPanel('homework',null)">View all</a></div>
           <div id="hwSnap"></div>
         </div>
       </div>
@@ -1247,7 +1247,7 @@ function buildSmileContent() {
       <div style="text-align:center;"><div style="font-size:18px;font-weight:800;color:var(--text);">${sessionsData.length}</div><div style="font-size:11px;color:var(--muted);">Total Sessions</div></div>
     </div>
     <div style="padding:12px 18px;text-align:center;">
-      <a href="#" onclick="showPanel('story',null);closeDropdowns();" style="color:var(--primary);font-size:13px;font-weight:600;text-decoration:none;">⭐ Share my wellness story →</a>
+      <a href="javascript:void(0)" onclick="showPanel('story',null);closeDropdowns();" style="color:var(--primary);font-size:13px;font-weight:600;text-decoration:none;">⭐ Share my wellness story →</a>
     </div>`;
 }
 

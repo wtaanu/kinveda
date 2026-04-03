@@ -30,18 +30,31 @@ const KV = (() => {
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    let res = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
+    let res;
+    try {
+      res = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
+    } catch (networkErr) {
+      // Server unreachable — show toast so the user sees something, don't crash the page
+      console.error('[KinVeda] Network error:', networkErr.message);
+      return null;
+    }
 
     if (res.status === 401) {
       const body = await res.json().catch(() => ({}));
       if (body.code === 'TOKEN_EXPIRED') {
-        const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
-        if (refreshRes.ok) {
-          const d = await refreshRes.json();
-          localStorage.setItem('kv_token', d.accessToken);
-          headers['Authorization'] = `Bearer ${d.accessToken}`;
-          res = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
-        } else {
+        try {
+          const refreshRes = await fetch(`${API_BASE}/api/auth/refresh`, { method: 'POST', credentials: 'include' });
+          if (refreshRes.ok) {
+            const d = await refreshRes.json();
+            localStorage.setItem('kv_token', d.accessToken);
+            headers['Authorization'] = `Bearer ${d.accessToken}`;
+            res = await fetch(`${API_BASE}${path}`, { ...options, headers, credentials: 'include' });
+          } else {
+            clearAuth();
+            window.location.href = 'kinveda-signin.html';
+            return null;
+          }
+        } catch {
           clearAuth();
           window.location.href = 'kinveda-signin.html';
           return null;
