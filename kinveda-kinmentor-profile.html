@@ -133,9 +133,9 @@
     <div class="logo-icon">🌿</div>
     <div class="logo-text">Kin<span>Veda</span></div>
   </a>
-  <div class="nav-links">
-    <a href="kinveda-landing.html">← All KinMentors</a>
-    <a href="kinveda-intake.html" class="btn-primary">Start Assessment →</a>
+  <div class="nav-links" id="navLinks">
+    <a href="kinveda-landing.html" id="navAllMentors">← All KinMentors</a>
+    <a href="kinveda-intake.html" class="btn-primary" id="navCta">Start Assessment →</a>
   </div>
 </nav>
 
@@ -172,9 +172,9 @@
           <div style="font-size:11px;color:var(--text-muted);">8 sessions / bi-weekly</div>
         </div>
       </div>
-      <div class="cta-btns">
-        <button class="btn-book" onclick="bookSession()">📅 Book a Session</button>
-        <button class="btn-chat" onclick="KV.toggleChat()">💬 Chat with KinVeda</button>
+      <div class="cta-btns" id="ctaBtns">
+        <button class="btn-book" id="btnBook" onclick="bookSession()">📅 Book a Session</button>
+        <button class="btn-chat" id="btnChat" onclick="KV.toggleChat()">💬 Chat with KinVeda</button>
       </div>
     </div>
   </div>
@@ -298,6 +298,35 @@
   // Get mentor ID from URL ?id=123
   const urlParams = new URLSearchParams(window.location.search);
   const mentorId = urlParams.get('id');
+
+  // ── Context-aware nav: different UX when a logged-in mentor views their own profile ──
+  (function applyRoleContext() {
+    try {
+      const u = JSON.parse(localStorage.getItem('kv_user') || 'null');
+      if (!u) return; // public visitor — show default nav
+      if (u.role === 'kinmentor') {
+        // Mentor viewing their own (or another mentor's) public profile
+        const allMentorsLink = document.getElementById('navAllMentors');
+        const ctaLink        = document.getElementById('navCta');
+        const floatCta       = document.getElementById('floatCta');
+        const btnBook        = document.getElementById('btnBook');
+        const btnChat        = document.getElementById('btnChat');
+        allMentorsLink.textContent = '← Back to Dashboard';
+        allMentorsLink.href = 'kinveda-kinmentor.html';
+        ctaLink.style.display = 'none';           // hide "Start Assessment"
+        if (floatCta) floatCta.style.display = 'none';  // hide floating Book CTA
+        if (btnBook)  btnBook.style.display  = 'none';  // hide hero Book button
+        if (btnChat)  btnChat.style.display  = 'none';  // hide chat CTA
+      } else if (u.role === 'kinmember') {
+        // Member: keep default CTA but change "All KinMentors" to go back to portal
+        document.getElementById('navAllMentors').textContent = '← Back to Portal';
+        document.getElementById('navAllMentors').href = 'kinveda-kinmember.html';
+        document.getElementById('navCta').textContent = 'Request Session →';
+        document.getElementById('navCta').href = 'javascript:void(0)';
+        document.getElementById('navCta').onclick = () => bookSession();
+      }
+    } catch(e) { /* ignore */ }
+  })();
 
   function starsHtml(rating) {
     const full = Math.floor(rating);

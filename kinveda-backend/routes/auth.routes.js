@@ -152,7 +152,7 @@ router.post('/signin',
         name: decrypt(user.name_enc)
       },
       redirectTo: user.role === 'admin'
-        ? `${process.env.ADMIN_ROUTE_PREFIX}`
+        ? '/kinveda-admin.html'
         : user.role === 'kinmentor'
           ? '/kinveda-kinmentor.html'
           : '/kinveda-kinmember.html'

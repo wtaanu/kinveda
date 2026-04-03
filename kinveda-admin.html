@@ -186,7 +186,8 @@
     <a href="#" class="sb-item active" onclick="showAdminPanel('dashboard',this)"><span class="icon">📊</span> Dashboard</a>
     <a href="#" class="sb-item" onclick="showAdminPanel('members',this)"><span class="icon">📥</span> KinMember Requests <span class="badge new" id="badgeMembers">0</span></a>
     <a href="#" class="sb-item" onclick="showAdminPanel('sos',this)"><span class="icon">🆘</span> SOS Alerts <span class="badge" id="badgeSos">0</span></a>
-    <a href="#" class="sb-item" onclick="showAdminPanel('sessions',this)"><span class="icon">📅</span> Sessions</a>
+    <a href="#" class="sb-item" onclick="showAdminPanel('sessionrequests',this)"><span class="icon">📋</span> Session Requests <span class="badge" id="badgeSessReq">0</span></a>
+    <a href="#" class="sb-item" onclick="showAdminPanel('sessions',this)"><span class="icon">📅</span> All Sessions</a>
     <div class="sb-section">Users</div>
     <a href="#" class="sb-item" onclick="showAdminPanel('kinmentors',this)"><span class="icon">🧑‍⚕️</span> KinMentors</a>
     <a href="#" class="sb-item" onclick="showAdminPanel('preregistered',this)"><span class="icon">📧</span> Pre-registered</a>
@@ -472,6 +473,17 @@
     </div>
   </div>
 
+  <!-- ── SESSION REQUESTS PANEL ──────────────────────────────────── -->
+  <div class="admin-panel" id="admin-panel-sessionrequests">
+    <div class="card">
+      <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;">
+        <h3>📋 Pending Session Requests</h3>
+        <button class="status-pill s-active" style="padding:7px 16px;font-size:12px;border:none;cursor:pointer;border-radius:8px;" onclick="loadSessionRequests()">↺ Refresh</button>
+      </div>
+      <div id="sessReqList"><div style="text-align:center;padding:30px;color:#78716C;">Loading…</div></div>
+    </div>
+  </div>
+
   <!-- ── SESSIONS PANEL ──────────────────────────────────────────── -->
   <div class="admin-panel" id="admin-panel-sessions">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
@@ -662,33 +674,36 @@
     loadDashboard();
   }
 
-  // Resolve the admin API prefix from the current page URL
-  // e.g. if page is /mgmt-alpha-secure/kinveda-admin.html
-  // then ADMIN_API = /mgmt-alpha-secure/api
+  // Admin API prefix — must match ADMIN_ROUTE_PREFIX in .env
+  const ADMIN_PREFIX = '/mgmt-alpha-secure';
   function getAdminApi() {
-    // Detect prefix from pathname — everything before /kinveda-admin.html
-    const pathname = window.location.pathname;
-    const match = pathname.match(/^(.*?)\/kinveda-admin\.html/);
-    const prefix = match ? match[1] : '';
-    return `${KV.API_BASE}${prefix}/api`;
+    return `${KV.API_BASE}${ADMIN_PREFIX}/api`;
   }
 
   async function adminFetch(path, options = {}) {
     const token = KV.getToken();
     const headers = { 'Content-Type': 'application/json', ...options.headers };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${getAdminApi()}${path}`, { ...options, headers, credentials: 'include' });
-    if (res.status === 401) { KV.signOut(); return null; }
-    return res;
+    try {
+      const res = await fetch(`${getAdminApi()}${path}`, { ...options, headers, credentials: 'include' });
+      if (res.status === 401) { KV.signOut(); return null; }
+      if (res.status === 403) { KV.showToast('Access denied. Make sure you are signed in as admin.', 'error'); return null; }
+      return res;
+    } catch(e) {
+      console.error('[KinVeda Admin] network error:', e.message);
+      KV.showToast('Server unreachable — is the backend running?', 'error');
+      return null;
+    }
   }
 
   async function loadDashboard() {
     try {
-      // Load stats, users, SOS in parallel
-      const [statsRes, usersRes, sosRes] = await Promise.all([
+      // Load stats, users, SOS, and pending session requests in parallel
+      const [statsRes, usersRes, sosRes, pendingReqRes] = await Promise.all([
         adminFetch('/stats'),
         adminFetch('/users?limit=50'),
-        adminFetch('/sos')
+        adminFetch('/sos'),
+        adminFetch('/sessions/pending')
       ]);
 
       if (statsRes && statsRes.ok) {
@@ -711,6 +726,12 @@
       if (sosRes && sosRes.ok) {
         const { events } = await sosRes.json();
         renderSosEvents(events);
+      }
+
+      if (pendingReqRes && pendingReqRes.ok) {
+        const pendingData = await pendingReqRes.json().catch(() => ({}));
+        const badge = document.getElementById('badgeSessReq');
+        if (badge) badge.textContent = pendingData.requests?.length || 0;
       }
 
     } catch (err) {
@@ -888,7 +909,8 @@
     if (el) el.classList.add('active');
     const titles = {
       dashboard: 'Admin Command Centre', members: 'KinMember Requests', sos: 'SOS Alert Tracker',
-      sessions: 'Sessions', kinmentors: 'KinMentor Management', preregistered: 'Pre-registered Users',
+      sessionrequests: 'Session Requests', sessions: 'All Sessions',
+      kinmentors: 'KinMentor Management', preregistered: 'Pre-registered Users',
       admins: 'Admin Accounts', payouts: 'Payouts', content: 'Platform Content', testimonials: 'Testimonial Moderation'
     };
     document.querySelector('.topbar h1').textContent = titles[name] || 'Admin';
@@ -896,6 +918,7 @@
     // Lazy load panel data
     if (name === 'members') loadMembersPanel();
     if (name === 'sos') loadSosPanel();
+    if (name === 'sessionrequests') loadSessionRequests();
     if (name === 'sessions') loadSessionsPanel();
     if (name === 'kinmentors') loadMentorsPanel();
     if (name === 'preregistered') loadPreregistered();
@@ -937,6 +960,96 @@
     }).join('');
     const open = events.filter(e=>e.status==='open').length;
     document.getElementById('badgeSos').textContent = open;
+  }
+
+  // ─── Session Requests ──────────────────────────────────────────────────────
+  async function loadSessionRequests() {
+    const el = document.getElementById('sessReqList');
+    if (el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#78716C;">Loading…</div>';
+    const res = await adminFetch('/sessions/pending');
+    if (!res) return;
+    const data = await res.json().catch(() => ({}));
+    const reqs = data.requests || [];
+
+    // Update sidebar badge
+    const badge = document.getElementById('badgeSessReq');
+    if (badge) badge.textContent = reqs.length;
+
+    if (!el) return;
+    if (!reqs.length) {
+      el.innerHTML = '<p style="text-align:center;padding:30px;color:#78716C;">✅ No pending session requests.</p>';
+      return;
+    }
+
+    el.innerHTML = reqs.map(r => `
+      <div style="border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px;background:#FAFAF7;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">KinMember</div>
+            <div style="font-size:14px;font-weight:700;margin-top:2px;">${escAdmin(r.memberName)}</div>
+            <div style="font-size:12px;color:#78716C;">${r.memberEmail}</div></div>
+          <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Requested Mentor</div>
+            <div style="font-size:14px;font-weight:700;margin-top:2px;">${escAdmin(r.mentorName)}</div>
+            <div style="font-size:12px;color:#78716C;">${r.mentorEmail}</div></div>
+          <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Duration</div>
+            <div style="font-size:14px;font-weight:600;margin-top:2px;">${r.durationMins} minutes</div></div>
+          <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Requested On</div>
+            <div style="font-size:13px;margin-top:2px;">${new Date(r.createdAt * 1000).toLocaleDateString('en-IN')}</div></div>
+          ${r.message ? `<div style="grid-column:1/-1;"><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Member's Note</div>
+            <div style="font-size:13px;margin-top:2px;font-style:italic;color:#57534E;">"${escAdmin(r.message)}"</div></div>` : ''}
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;">
+          <div style="flex:1;min-width:200px;">
+            <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">Approve with Date & Time (IST)</label>
+            <input type="datetime-local" id="approveDt-${r.id}" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
+          </div>
+          <button onclick="approveSessionRequest(${r.id})" style="background:#059669;color:white;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            ✅ Approve Session
+          </button>
+          <button onclick="rejectSessionRequest(${r.id})" style="background:#DC2626;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
+            ✕ Decline
+          </button>
+        </div>
+      </div>`).join('');
+  }
+
+  function escAdmin(str) {
+    if (str == null) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  async function approveSessionRequest(sessionId) {
+    const dtInput = document.getElementById('approveDt-' + sessionId);
+    if (!dtInput || !dtInput.value) {
+      KV.showToast('Please select a date and time before approving.', 'warning');
+      dtInput?.focus();
+      return;
+    }
+    const scheduledAt = Math.floor(new Date(dtInput.value).getTime() / 1000);
+    if (isNaN(scheduledAt) || scheduledAt < Math.floor(Date.now() / 1000)) {
+      KV.showToast('Please choose a future date and time.', 'warning');
+      return;
+    }
+    const res = await adminFetch(`/sessions/${sessionId}/approve`, {
+      method: 'PATCH',
+      body: JSON.stringify({ scheduledAt })
+    });
+    if (!res) return;
+    const data = await res.json().catch(() => ({}));
+    if (data.success) {
+      KV.showToast('✅ Session approved! Confirmation emails sent to both member and mentor.', 'success');
+      loadSessionRequests();
+    } else {
+      KV.showToast(data.message || 'Approval failed.', 'error');
+    }
+  }
+
+  async function rejectSessionRequest(sessionId) {
+    if (!confirm('Decline this session request? The member will not be notified automatically.')) return;
+    const res = await adminFetch(`/sessions/${sessionId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'cancelled' })
+    });
+    if (res) { KV.showToast('Request declined.', 'info'); loadSessionRequests(); }
   }
 
   async function loadSessionsPanel() {

@@ -880,6 +880,7 @@ async function saveAvailability() {
   let hasError = false;
   for (let i = 0; i < 7; i++) {
     const container = document.getElementById('slots-' + i);
+    if (!container) continue;
     container.querySelectorAll('.avail-slot').forEach(div => {
       const sid = div.id;
       const start = document.getElementById(sid+'-start')?.value;
@@ -887,8 +888,13 @@ async function saveAvailability() {
       const label = document.getElementById(sid+'-label')?.value?.trim();
       if (start && end) {
         const durationMins = timeToMins(end) - timeToMins(start);
-        if (durationMins < 60) {
-          KV.showToast(`Each availability slot must be at least 1 hour. Check ${DAYS[i]} slot.`, 'warning');
+        if (durationMins < 30) {
+          KV.showToast(`Slot too short — minimum 30 minutes. Check ${DAYS[i]}.`, 'warning');
+          hasError = true;
+          return;
+        }
+        if (durationMins <= 0) {
+          KV.showToast(`End time must be after start time. Check ${DAYS[i]}.`, 'warning');
           hasError = true;
           return;
         }
@@ -898,33 +904,45 @@ async function saveAvailability() {
     if (hasError) break;
   }
   if (hasError) return;
-  const res = await KV.post('/api/kinmentor/availability/bulk', { slots });
-  if (!res) return;
-  const data = await res.json();
-  if (data.success) KV.showToast(`${slots.length} availability slot${slots.length !== 1 ? 's' : ''} saved!`, 'success');
-  else KV.showToast(data.message || 'Save failed.', 'error');
+  if (slots.length === 0) {
+    KV.showToast('No slots to save — add at least one time slot first.', 'warning');
+    return;
+  }
+  try {
+    const res = await KV.post('/api/kinmentor/availability/bulk', { slots });
+    if (!res) return;
+    const data = await res.json().catch(() => ({}));
+    if (data.success) KV.showToast(`✅ ${slots.length} slot${slots.length !== 1 ? 's' : ''} saved successfully!`, 'success');
+    else KV.showToast(data.message || 'Save failed — please try again.', 'error');
+  } catch(e) {
+    KV.showToast('Save failed — check server connection.', 'error');
+  }
 }
 
 function populateCopyMonthSelect() {
   const sel = document.getElementById('copyMonthSel');
   const now = new Date();
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 0; i <= 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
     const opt = document.createElement('option');
     opt.value = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    opt.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' });
+    opt.textContent = d.toLocaleString('default', { month: 'long', year: 'numeric' }) + (i === 0 ? ' (Current)' : '');
     sel.appendChild(opt);
   }
 }
 
-function copyToMonth() {
-  const month = document.getElementById('copyMonthSel').value;
+async function copyToMonth() {
+  const sel = document.getElementById('copyMonthSel');
+  const month = sel.value;
   if (!month) { KV.showToast('Please select a month first.', 'warning'); return; }
-  KV.showToast(`Schedule copied to ${month}! (Save to apply)`, 'info');
+  const label = sel.options[sel.selectedIndex]?.textContent || month;
+  KV.showToast(`Saving availability for ${label}…`, 'info');
+  await saveAvailability();
 }
 
-function copyToFuture() {
-  KV.showToast('Schedule will be applied to all future months! (Save to apply)', 'info');
+async function copyToFuture() {
+  KV.showToast('Saving availability for all future months…', 'info');
+  await saveAvailability();
 }
 
 // ─── Revenue Dashboard ────────────────────────────────────────────────────────

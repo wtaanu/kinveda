@@ -12,7 +12,8 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { encrypt, decrypt, encryptJSON, decryptJSON } = require('../middleware/encrypt');
 const {
   sendSessionScheduledEmail, sendSessionConfirmation,
-  sendMentorPayoutInvoice, sendPaymentConfirmationEmail
+  sendMentorPayoutInvoice, sendPaymentConfirmationEmail,
+  sendSessionApprovedEmail
 } = require('../config/mailer');
 
 // All admin routes require auth + admin role
@@ -278,6 +279,114 @@ router.get('/sessions', (req, res) => {
       mentorEmail: s.mentor_email
     }))
   });
+});
+
+// ─── GET: Pending Session Requests ───────────────────────────────────────────
+router.get('/sessions/pending', (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT bs.id, bs.member_id, bs.mentor_id, bs.duration_mins, bs.notes_enc, bs.created_at,
+           um.name_enc AS member_name_enc, um.email AS member_email,
+           ut.name_enc AS mentor_name_enc, ut.email AS mentor_email
+    FROM booking_sessions bs
+    JOIN users um ON um.id = bs.member_id
+    JOIN users ut ON ut.id = bs.mentor_id
+    WHERE bs.status = 'pending'
+    ORDER BY bs.created_at ASC
+  `).all();
+
+  return res.json({
+    success: true,
+    requests: rows.map(r => ({
+      id: r.id,
+      memberId: r.member_id,
+      mentorId: r.mentor_id,
+      durationMins: r.duration_mins,
+      memberName: decrypt(r.member_name_enc),
+      memberEmail: r.member_email,
+      mentorName: decrypt(r.mentor_name_enc),
+      mentorEmail: r.mentor_email,
+      message: r.notes_enc ? decrypt(r.notes_enc) : null,
+      createdAt: r.created_at
+    }))
+  });
+});
+
+// ─── PATCH: Approve Session Request (admin sets date/time) ───────────────────
+router.patch('/sessions/:id/approve',
+  [body('scheduledAt').isInt({ min: 1 }).withMessage('Valid scheduled timestamp required.')],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
+    const sessionId = parseInt(req.params.id);
+    const { scheduledAt } = req.body;
+    const db = getDb();
+    const crypto = require('crypto');
+
+    const session = db.prepare(`
+      SELECT bs.*, um.name_enc AS member_name_enc, um.email AS member_email,
+             ut.name_enc AS mentor_name_enc, ut.email AS mentor_email
+      FROM booking_sessions bs
+      JOIN users um ON um.id = bs.member_id
+      JOIN users ut ON ut.id = bs.mentor_id
+      WHERE bs.id = ? AND bs.status = 'pending'
+    `).get(sessionId);
+
+    if (!session) return res.status(404).json({ success: false, message: 'Pending session request not found.' });
+
+    const roomName = `kv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
+    const now = Math.floor(Date.now() / 1000);
+
+    db.prepare(`
+      UPDATE booking_sessions
+      SET status = 'confirmed', scheduled_at = ?, video_room = ?, payment_status = 'pending', updated_at = ?
+      WHERE id = ?
+    `).run(scheduledAt, roomName, now, sessionId);
+
+    // Create video session entry
+    db.prepare('INSERT OR IGNORE INTO video_sessions (session_id, room_name, created_at) VALUES (?, ?, ?)').run(sessionId, roomName, now);
+
+    auditLog(db, req.user.id, 'APPROVE_SESSION', 'booking_sessions', sessionId, { scheduledAt }, req.ip);
+
+    // Send approval email to member
+    try {
+      sendSessionApprovedEmail(
+        session.member_email,
+        decrypt(session.member_name_enc),
+        decrypt(session.mentor_name_enc),
+        scheduledAt,
+        session.duration_mins,
+        'kinmember'
+      ).catch(console.error);
+    } catch(e) { console.error('[mail] approve→member:', e.message); }
+
+    // Send approval email to mentor
+    try {
+      sendSessionApprovedEmail(
+        session.mentor_email,
+        decrypt(session.mentor_name_enc),
+        decrypt(session.member_name_enc),
+        scheduledAt,
+        session.duration_mins,
+        'kinmentor'
+      ).catch(console.error);
+    } catch(e) { console.error('[mail] approve→mentor:', e.message); }
+
+    return res.json({ success: true, sessionId, videoRoom: roomName });
+  }
+);
+
+// ─── PATCH: Update Session Status (cancel/etc) ───────────────────────────────
+router.patch('/sessions/:id/status', [body('status').isIn(['cancelled','confirmed','completed'])], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+  const db = getDb();
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare('UPDATE booking_sessions SET status = ?, updated_at = ? WHERE id = ?')
+    .run(req.body.status, now, req.params.id);
+  auditLog(db, req.user.id, 'UPDATE_SESSION_STATUS', 'booking_sessions', req.params.id, { status: req.body.status }, req.ip);
+  res.json({ success: true });
 });
 
 // ─── POST: Add Resource to Library ───────────────────────────────────────────

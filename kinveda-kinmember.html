@@ -394,16 +394,46 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       <div class="card">
         <div class="card-h">
           <h3>📅 All My Sessions</h3>
-          <div style="display:flex;gap:8px;align-items:center;">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <select id="sessFilter" onchange="filterSessions()" style="border:1.5px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px;cursor:pointer;">
               <option value="all">All Sessions</option>
+              <option value="pending">Awaiting Approval</option>
               <option value="upcoming">Upcoming</option>
               <option value="completed">Completed</option>
               <option value="unpaid">Payment Due</option>
             </select>
+            <button class="btn-p" onclick="showRequestSessionModal()" style="font-size:12px;padding:6px 14px;">+ Request Session</button>
           </div>
         </div>
         <div id="allSessions"><div class="loading-state">Loading sessions...</div></div>
+      </div>
+
+      <!-- Request Session Modal -->
+      <div id="reqSessModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;">
+        <div style="background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.18);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+            <h3 style="font-size:18px;font-weight:800;">📅 Request a Session</h3>
+            <button onclick="closeRequestSessionModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);">✕</button>
+          </div>
+          <div id="reqSessMentorList" style="margin-bottom:16px;"><div class="loading-state">Loading mentors…</div></div>
+          <div style="margin-bottom:14px;">
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Session Duration</label>
+            <div style="display:flex;gap:8px;">
+              <label style="flex:1;border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;" id="dur30Label">
+                <input type="radio" name="reqDuration" value="30" style="margin-right:6px;">30 min
+              </label>
+              <label style="flex:1;border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;text-align:center;" id="dur60Label">
+                <input type="radio" name="reqDuration" value="60" style="margin-right:6px;" checked>60 min
+              </label>
+            </div>
+          </div>
+          <div style="margin-bottom:18px;">
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Message to Admin <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+            <textarea id="reqSessMessage" rows="3" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="e.g. I'd prefer a morning slot, I'm dealing with anxiety…"></textarea>
+          </div>
+          <div id="reqSessError" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px;"></div>
+          <button class="btn-p" onclick="submitSessionRequest()" id="reqSessSubmitBtn" style="width:100%;padding:13px;">Send Request →</button>
+        </div>
       </div>
     </div>
 
@@ -713,23 +743,33 @@ function viewMentorProfile() {
 }
 
 async function loadSessions() {
-  const res = await KV.get('/api/kinmember/sessions');
-  if (!res) return;
-  const data = await res.json();
-  if (!data.success) return;
-  sessionsData = data.sessions;
-  const upcoming = sessionsData.filter(s => s.status !== 'completed' && s.status !== 'cancelled');
-  document.getElementById('sessCount').textContent = upcoming.length;
-  document.getElementById('st1').textContent = sessionsData.filter(s => s.status === 'completed').length;
-  document.getElementById('st4').textContent = upcoming.length;
+  // Load confirmed sessions + pending requests together
+  const [confRes, pendRes] = await Promise.all([
+    KV.get('/api/kinmember/sessions'),
+    KV.get('/api/kinmember/session-requests')
+  ]);
+  const confirmed = confRes ? await confRes.json().catch(() => ({})) : {};
+  const pending   = pendRes ? await pendRes.json().catch(() => ({})) : {};
 
-  // Next session line
-  const next = sessionsData.find(s => s.scheduledAt > Date.now()/1000 && s.status !== 'cancelled');
+  // Merge: pending requests first, then confirmed
+  const pendingSessions = (pending.sessions || []).filter(s => s.status === 'pending');
+  const confirmedSessions = confirmed.sessions || [];
+  sessionsData = [...pendingSessions, ...confirmedSessions];
+
+  const active = sessionsData.filter(s => s.status !== 'completed' && s.status !== 'cancelled');
+  document.getElementById('sessCount').textContent = active.length;
+  document.getElementById('st1').textContent = sessionsData.filter(s => s.status === 'completed').length;
+  document.getElementById('st4').textContent = active.filter(s => s.status === 'confirmed').length;
+
+  // Next confirmed session line
+  const next = confirmedSessions.find(s => s.scheduledAt > Date.now()/1000 && s.status !== 'cancelled');
   if (next) {
     document.getElementById('nextSessionLine').textContent = `Next session: ${KV.fmtDate(next.scheduledAt)} with ${next.mentorName}`;
     if (next.paymentStatus === 'unpaid') document.getElementById('payBanner').style.display = 'flex';
+  } else if (pendingSessions.length > 0) {
+    document.getElementById('nextSessionLine').textContent = `${pendingSessions.length} session request${pendingSessions.length > 1 ? 's' : ''} awaiting admin approval.`;
   } else {
-    document.getElementById('nextSessionLine').textContent = 'No upcoming sessions — book one now!';
+    document.getElementById('nextSessionLine').textContent = 'No upcoming sessions — request one now!';
   }
   renderSessions();
 }
@@ -809,11 +849,17 @@ function renderDashboard() {
 }
 
 function sessionCard(s) {
+  const isPending   = s.status === 'pending';
   const isCompleted = s.status === 'completed';
   const isCancelled = s.status === 'cancelled';
   const unpaid = s.paymentStatus === 'unpaid' && !s.paymentWaived;
-  const statusBadge = isCompleted ? 'b-completed' : (isCancelled ? 'b-sos' : (unpaid ? 'b-pending' : 'b-upcoming'));
-  const statusLabel = isCompleted ? 'Completed' : (isCancelled ? 'Cancelled' : (unpaid ? '⚠ Payment Due' : 'Confirmed'));
+
+  let statusBadge, statusLabel;
+  if (isPending)   { statusBadge = 'b-pending';   statusLabel = '⏳ Awaiting Approval'; }
+  else if (isCompleted) { statusBadge = 'b-completed'; statusLabel = 'Completed'; }
+  else if (isCancelled) { statusBadge = 'b-sos';       statusLabel = 'Cancelled'; }
+  else if (unpaid)      { statusBadge = 'b-pending';   statusLabel = '⚠ Payment Due'; }
+  else                  { statusBadge = 'b-upcoming';  statusLabel = 'Confirmed'; }
 
   // Build action buttons
   const nowTs = Math.floor(Date.now() / 1000);
@@ -843,7 +889,7 @@ function sessionCard(s) {
       <div class="si-av">🧑‍⚕️</div>
       <div class="si-info"><h4>${KV.esc(s.mentorName || 'KinMentor')}</h4><p>${s.durationMins || 50} min session</p></div>
       <div class="si-meta">
-        <div class="si-date">${KV.fmtDate(s.scheduledAt)}</div>
+        <div class="si-date">${s.scheduledAt ? KV.fmtDate(s.scheduledAt) : 'Date TBD'}</div>
         <div style="margin-top:4px;"><span class="badge ${statusBadge}">${statusLabel}</span></div>
       </div>
     </div>
@@ -855,9 +901,10 @@ function filterSessions() {
   const filter = document.getElementById('sessFilter').value;
   const el = document.getElementById('allSessions');
   let filtered = sessionsData;
-  if (filter === 'upcoming') filtered = sessionsData.filter(s => s.status !== 'completed' && s.status !== 'cancelled');
+  if (filter === 'pending')   filtered = sessionsData.filter(s => s.status === 'pending');
+  if (filter === 'upcoming')  filtered = sessionsData.filter(s => s.status === 'confirmed');
   if (filter === 'completed') filtered = sessionsData.filter(s => s.status === 'completed');
-  if (filter === 'unpaid') filtered = sessionsData.filter(s => s.paymentStatus === 'unpaid' && !s.paymentWaived);
+  if (filter === 'unpaid')    filtered = sessionsData.filter(s => s.paymentStatus === 'unpaid' && !s.paymentWaived);
   if (!filtered.length) { el.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No sessions match this filter.</p>'; return; }
   el.innerHTML = filtered.map(sessionCard).join('');
 }
@@ -1300,6 +1347,120 @@ async function submitStory() {
     loadMyTestimonials();
   } else {
     KV.showToast(data.message || 'Submission failed.', 'error');
+  }
+}
+
+// ─── Session Request Modal ────────────────────────────────────────────────────
+let _reqMentors = [];
+let _selectedReqMentorId = null;
+
+async function showRequestSessionModal() {
+  const modal = document.getElementById('reqSessModal');
+  modal.style.display = 'flex';
+  document.getElementById('reqSessError').style.display = 'none';
+  _selectedReqMentorId = null;
+
+  // Load mentor list
+  const listEl = document.getElementById('reqSessMentorList');
+  listEl.innerHTML = '<div class="loading-state">Loading mentors…</div>';
+
+  // If assigned mentor, only show them; otherwise public list
+  const mentorId = profileData?.assignedMentorId;
+  if (mentorId) {
+    const res = await KV.get(`/api/kinmentor/public/${mentorId}`);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    const m = data.mentor || data.profile;
+    if (m) {
+      _reqMentors = [{ id: mentorId, name: m.name, qualification: m.qualification }];
+    } else {
+      _reqMentors = [];
+    }
+  } else {
+    const res = await KV.get('/api/kinmentor/public-list');
+    const data = res ? await res.json().catch(() => ({})) : {};
+    _reqMentors = (data.mentors || []).map(m => ({ id: m.id, name: m.name, qualification: m.qualification }));
+  }
+
+  if (!_reqMentors.length) {
+    listEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">No available mentors at this time. Please check back soon.</p>';
+    return;
+  }
+
+  listEl.innerHTML = `
+    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Select a KinMentor</label>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${_reqMentors.map(m => `
+        <label style="display:flex;align-items:center;gap:12px;border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;" class="req-mentor-opt" data-id="${m.id}">
+          <input type="radio" name="reqMentor" value="${m.id}" style="width:18px;height:18px;accent-color:var(--primary);" onchange="selectReqMentor(${m.id})">
+          <div>
+            <div style="font-size:14px;font-weight:700;">${KV.esc(m.name)}</div>
+            <div style="font-size:12px;color:var(--muted);">${KV.esc(m.qualification || 'KinMentor')}</div>
+          </div>
+          <a href="kinveda-kinmentor-profile.html?id=${m.id}" target="_blank" style="margin-left:auto;font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;">View Profile ↗</a>
+        </label>`).join('')}
+    </div>`;
+
+  // Auto-select if only one mentor
+  if (_reqMentors.length === 1) {
+    _selectedReqMentorId = _reqMentors[0].id;
+    const radio = listEl.querySelector('input[type=radio]');
+    if (radio) { radio.checked = true; highlightReqMentor(_reqMentors[0].id); }
+  }
+}
+
+function selectReqMentor(id) {
+  _selectedReqMentorId = id;
+  highlightReqMentor(id);
+}
+
+function highlightReqMentor(id) {
+  document.querySelectorAll('.req-mentor-opt').forEach(el => {
+    el.style.borderColor = parseInt(el.dataset.id) === id ? 'var(--primary)' : 'var(--border)';
+    el.style.background  = parseInt(el.dataset.id) === id ? '#EEF7F5' : '';
+  });
+}
+
+function closeRequestSessionModal() {
+  document.getElementById('reqSessModal').style.display = 'none';
+}
+
+async function submitSessionRequest() {
+  const errEl = document.getElementById('reqSessError');
+  errEl.style.display = 'none';
+
+  if (!_selectedReqMentorId) {
+    errEl.textContent = 'Please select a KinMentor first.';
+    errEl.style.display = 'block';
+    return;
+  }
+  const dur = document.querySelector('input[name="reqDuration"]:checked')?.value;
+  if (!dur) { errEl.textContent = 'Please select a session duration.'; errEl.style.display = 'block'; return; }
+
+  const message = document.getElementById('reqSessMessage').value.trim();
+  const btn = document.getElementById('reqSessSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  const res = await KV.post('/api/kinmember/session-request', {
+    mentorId: _selectedReqMentorId,
+    durationMins: parseInt(dur),
+    message: message || undefined
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Send Request →';
+
+  if (!res) return;
+  const data = await res.json().catch(() => ({}));
+  if (data.success) {
+    closeRequestSessionModal();
+    KV.showToast('✅ Session request sent! Admin will confirm the date and time.', 'success');
+    await loadSessions();
+    showPanel('sessions', null);
+  } else {
+    const msg = data.errors ? data.errors.map(e => e.msg).join(', ') : (data.message || 'Request failed.');
+    errEl.textContent = msg;
+    errEl.style.display = 'block';
   }
 }
 </script>

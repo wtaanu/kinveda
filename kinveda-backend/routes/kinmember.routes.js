@@ -8,7 +8,7 @@ const { body, validationResult } = require('express-validator');
 const { getDb } = require('../config/database');
 const { requireAuth, requireKinMember } = require('../middleware/auth');
 const { encrypt, decrypt, encryptJSON, decryptJSON } = require('../middleware/encrypt');
-const { sendSOSAlert } = require('../config/mailer');
+const { sendSOSAlert, sendSessionRequestedEmail } = require('../config/mailer');
 
 // ─── GET: My Profile ──────────────────────────────────────────────────────────
 router.get('/profile', requireAuth, requireKinMember, (req, res) => {
@@ -260,6 +260,88 @@ router.post('/feedback', requireAuth, requireKinMember,
     return res.status(201).json({ success: true, message: 'Thank you for your feedback!' });
   }
 );
+
+// ─── POST: Request a Session ──────────────────────────────────────────────────
+// Member requests a session with a mentor. Status = 'pending' until admin approves.
+router.post('/session-request', requireAuth, requireKinMember,
+  [
+    body('mentorId').isInt({ min: 1 }).withMessage('Invalid mentor.'),
+    body('durationMins').isIn([30, 60]).withMessage('Duration must be 30 or 60 minutes.'),
+    body('message').optional({ nullable: true }).trim().isLength({ max: 500 })
+  ],
+  (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
+    const { mentorId, durationMins, message } = req.body;
+    const db = getDb();
+
+    // Verify mentor exists and is active
+    const mentor = db.prepare(
+      "SELECT u.id, u.name_enc, u.email FROM users u JOIN kinmentor_profiles kp ON kp.user_id = u.id WHERE u.id = ? AND u.role = 'kinmentor' AND u.is_active = 1"
+    ).get(mentorId);
+    if (!mentor) return res.status(404).json({ success: false, message: 'KinMentor not found or unavailable.' });
+
+    // Check for duplicate pending request (same member + mentor)
+    const dup = db.prepare(
+      "SELECT id FROM booking_sessions WHERE member_id = ? AND mentor_id = ? AND status = 'pending'"
+    ).get(req.user.id, mentorId);
+    if (dup) return res.status(409).json({ success: false, message: 'You already have a pending session request with this KinMentor. Please wait for admin approval.' });
+
+    const notesEnc = message ? encrypt(message) : null;
+    const result = db.prepare(`
+      INSERT INTO booking_sessions
+        (member_id, mentor_id, duration_mins, status, payment_status, notes_enc, created_at, updated_at)
+      VALUES (?, ?, ?, 'pending', 'pending', ?, unixepoch(), unixepoch())
+    `).run(req.user.id, mentorId, durationMins, notesEnc);
+
+    // Notify admin(s) by email
+    try {
+      const member = db.prepare('SELECT name_enc FROM users WHERE id = ?').get(req.user.id);
+      const adminEmails = (process.env.ADMIN_EMAIL_IDS || process.env.ADMIN_EMAIL || '').split(',').map(e => e.trim()).filter(Boolean);
+      adminEmails.forEach(email => {
+        sendSessionRequestedEmail(
+          email,
+          decrypt(member.name_enc),
+          decrypt(mentor.name_enc),
+          durationMins,
+          message || null
+        ).catch(console.error);
+      });
+    } catch(e) { console.error('[mail] session-request:', e.message); }
+
+    return res.status(201).json({ success: true, sessionId: result.lastInsertRowid, message: 'Session request submitted. You will be notified once it is approved.' });
+  }
+);
+
+// ─── GET: My Session Requests ─────────────────────────────────────────────────
+router.get('/session-requests', requireAuth, requireKinMember, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT bs.id, bs.mentor_id, bs.duration_mins, bs.status, bs.payment_status,
+           bs.scheduled_at, bs.video_room, bs.created_at,
+           u.name_enc AS mentor_name_enc
+    FROM booking_sessions bs
+    JOIN users u ON u.id = bs.mentor_id
+    WHERE bs.member_id = ?
+    ORDER BY bs.created_at DESC
+  `).all(req.user.id);
+
+  return res.json({
+    success: true,
+    sessions: rows.map(r => ({
+      id: r.id,
+      mentorId: r.mentor_id,
+      mentorName: decrypt(r.mentor_name_enc),
+      durationMins: r.duration_mins,
+      status: r.status,
+      paymentStatus: r.payment_status,
+      scheduledAt: r.scheduled_at,
+      videoRoom: r.video_room,
+      createdAt: r.created_at
+    }))
+  });
+});
 
 // ─── POST: Quick Exit SOS Trigger ─────────────────────────────────────────────
 router.post('/sos/quick-exit', requireAuth, (req, res) => {

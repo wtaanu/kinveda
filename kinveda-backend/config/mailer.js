@@ -254,6 +254,53 @@ async function sendMentorPayoutInvoice(toEmail, mentorName, grossAmount, platfor
   });
 }
 
+// ─── Session Request Received (member requested a session) ───────────────────
+async function sendSessionRequestedEmail(adminEmail, memberName, mentorName, durationMins, message) {
+  await getTransporter().sendMail({
+    from: `"KinVeda Admin" <${process.env.SMTP_USER}>`,
+    to: adminEmail,
+    subject: `📋 New Session Request — ${memberName} → ${mentorName}`,
+    html: wrapHtml('New Session Request', `
+      <p>A KinMember has requested a session. Please log in to approve it with a date and time.</p>
+      <div class="field"><strong>KinMember</strong>${memberName}</div>
+      <div class="field"><strong>Requested KinMentor</strong>${mentorName}</div>
+      <div class="field"><strong>Duration Requested</strong>${durationMins} minutes</div>
+      ${message ? `<div class="field"><strong>Member's Note</strong>${message}</div>` : ''}
+      <a href="${process.env.FRONTEND_URL}/kinveda-admin.html" class="btn">Review & Approve →</a>
+    `)
+  });
+}
+
+// ─── Session Approved — sent to BOTH member and mentor ───────────────────────
+async function sendSessionApprovedEmail(toEmail, recipientName, otherPartyName, scheduledAt, durationMins, role) {
+  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
+  });
+  const isMember = role === 'kinmember';
+  const dashboardUrl = isMember
+    ? `${process.env.FRONTEND_URL}/kinveda-kinmember.html`
+    : `${process.env.FRONTEND_URL}/kinveda-kinmentor.html`;
+
+  await getTransporter().sendMail({
+    from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `✅ Session Approved — ${sessionDate}`,
+    html: wrapHtml('Your Session is Confirmed!', `
+      <p>Hello <strong>${recipientName}</strong>,</p>
+      <p>Your KinVeda session has been <strong>approved and confirmed</strong>.</p>
+      <div class="field"><strong>${isMember ? 'Your KinMentor' : 'KinMember'}</strong>${otherPartyName}</div>
+      <div class="field"><strong>Date & Time (IST)</strong>${sessionDate}</div>
+      <div class="field"><strong>Duration</strong>${durationMins} minutes</div>
+      <p>${isMember
+        ? 'Log in to your dashboard to see the session details and join the live call when it starts.'
+        : 'Log in to your dashboard to start the session at the scheduled time.'
+      }</p>
+      <a href="${dashboardUrl}" class="btn">${isMember ? 'View My Sessions →' : 'Go to Dashboard →'}</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">All sessions are encrypted and private. 🔒</p>
+    `)
+  });
+}
+
 module.exports = {
   sendWelcomeEmail,
   sendAdminChatNotification,
@@ -264,5 +311,7 @@ module.exports = {
   sendNotesAssignedEmail,
   sendPaymentConfirmationEmail,
   sendMentorPayoutInvoice,
-  sendPasswordReset
+  sendPasswordReset,
+  sendSessionRequestedEmail,
+  sendSessionApprovedEmail
 };

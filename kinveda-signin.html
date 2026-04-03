@@ -248,16 +248,29 @@
         showError('Your previous session has expired. Please sign in again.');
       });
     } else {
-      // Valid token — skip sign-in and go straight to portal
+      // Valid token — only auto-redirect if the stored role matches the
+      // role requested via ?role= URL param (prevents cross-portal confusion).
       try {
         const u = JSON.parse(existingUser);
         if (u && u.role) {
-          if (u.role === 'admin') {
-            // Admin: do not auto-redirect (avoid exposing admin path in history)
-          } else if (u.role === 'kinmentor') {
-            window.location.replace('kinveda-kinmentor.html');
+          // Read the role requested by the link/button that brought the user here
+          const requestedRole = new URLSearchParams(window.location.search).get('role');
+          // If a specific role is requested and it doesn't match → DON'T auto-redirect.
+          // The user wants to sign in as a different account / role.
+          if (requestedRole && requestedRole !== u.role) {
+            // Pre-select the correct tab but let the user sign in explicitly
+            document.addEventListener('DOMContentLoaded', () => {
+              if (typeof setRole === 'function') setRole(requestedRole);
+            });
           } else {
-            window.location.replace('kinveda-kinmember.html');
+            // No role requested, or matches — redirect to the appropriate portal
+            if (u.role === 'admin') {
+              window.location.replace('kinveda-admin.html');
+            } else if (u.role === 'kinmentor') {
+              window.location.replace('kinveda-kinmentor.html');
+            } else {
+              window.location.replace('kinveda-kinmember.html');
+            }
           }
         }
       } catch (e) { /* ignore bad JSON */ }
