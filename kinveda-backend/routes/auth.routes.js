@@ -29,7 +29,7 @@ const authLimiter = rateLimit({
 router.post('/signup',
   authLimiter,
   [
-    body('email').isEmail().normalizeEmail().withMessage('Valid email required.'),
+    body('email').isEmail().toLowerCase().withMessage('Valid email required.'),
     body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters.'),
     body('name').trim().isLength({ min: 2 }).withMessage('Name required.'),
     body('role').isIn(['kinmember', 'kinmentor']).withMessage('Role must be kinmember or kinmentor.')
@@ -113,7 +113,7 @@ router.post('/signup',
 router.post('/signin',
   authLimiter,
   [
-    body('email').isEmail().normalizeEmail(),
+    body('email').isEmail().toLowerCase(),
     body('password').notEmpty()
   ],
   async (req, res) => {
@@ -195,7 +195,7 @@ router.post('/signout', (req, res) => {
 });
 
 // ─── FORGOT PASSWORD ──────────────────────────────────────────────────────────
-router.post('/forgot', authLimiter, [body('email').isEmail().normalizeEmail()], async (req, res) => {
+router.post('/forgot', authLimiter, [body('email').isEmail().toLowerCase()], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
