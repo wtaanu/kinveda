@@ -257,18 +257,24 @@
     <p>Dedicated portals for KinMembers seeking support and KinMentors providing care</p>
   </div>
   <div class="portals-grid" style="grid-template-columns: repeat(2, 1fr); max-width: 800px; margin: 0 auto;">
-    <a href="kinveda-kinmember.html" class="portal-card patient">
+    <div class="portal-card patient" style="cursor:default;">
       <div class="p-icon">👤</div>
       <h3>KinMember Portal</h3>
       <p>Track your wellness journey, view booked sessions, download resources, and message your KinMentor — all in one secure space.</p>
-      <span class="p-btn">Enter KinMember Portal →</span>
-    </a>
-    <a href="kinveda-kinmentor.html" class="portal-card psychologist">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+        <a href="kinveda-signup.html?role=kinmember" class="p-btn" style="text-decoration:none;flex:1;text-align:center;">Create Account →</a>
+        <a href="kinveda-signin.html?role=kinmember" class="p-btn" onclick="enterPortal('kinmember'); return false;" style="text-decoration:none;flex:1;text-align:center;background:rgba(255,255,255,0.1);">Sign In</a>
+      </div>
+    </div>
+    <div class="portal-card psychologist" style="cursor:default;">
       <div class="p-icon">🧑‍⚕️</div>
       <h3>KinMentor Portal</h3>
       <p>Manage your caseload, write encrypted case notes, set session fees, and publish wellness content for your members.</p>
-      <span class="p-btn">Enter KinMentor Portal →</span>
-    </a>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+        <a href="kinveda-signup.html?role=kinmentor" class="p-btn" style="text-decoration:none;flex:1;text-align:center;">Join as Mentor →</a>
+        <a href="kinveda-signin.html?role=kinmentor" class="p-btn" onclick="enterPortal('kinmentor'); return false;" style="text-decoration:none;flex:1;text-align:center;background:rgba(255,255,255,0.1);">Sign In</a>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -354,6 +360,24 @@ async function loadTestimonials() {
 function escapeHtml(str) {
   if (!str) return '';
   return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Portal Entry: check auth first ─────────────────────────────────────────
+// If the user is already signed in with the matching role, go straight to the
+// portal. Otherwise take them to the sign-in / sign-up page with role pre-set.
+function enterPortal(role) {
+  try {
+    const token = localStorage.getItem('kv_token');
+    const user  = JSON.parse(localStorage.getItem('kv_user') || 'null');
+    if (token && user && user.role === role) {
+      window.location.href = role === 'kinmentor'
+        ? 'kinveda-kinmentor.html'
+        : 'kinveda-kinmember.html';
+      return;
+    }
+  } catch (e) { /* ignore parse errors */ }
+  // Not signed in (or different role) → go to sign-in with role hint
+  window.location.href = `kinveda-signin.html?role=${role}`;
 }
 
 document.addEventListener('DOMContentLoaded', loadTestimonials);

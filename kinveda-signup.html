@@ -176,24 +176,27 @@
         <!-- KINMENTOR EXTRA FIELDS -->
         <div class="full mentor-only" id="mentorExtras" style="display:none;">
           <div class="mentor-section">
-            <h4>🎓 Professional Details (required for KinMentors)</h4>
+            <h4>🎓 Professional Details <span style="font-size:12px;font-weight:400;color:#6B7F7C;">(Optional — you can complete this after signup in your Profile)</span></h4>
             <div class="form-grid" style="margin-top:0;">
               <div class="form-group">
-                <label>RCI License Number *</label>
+                <label>RCI License Number <span style="font-weight:400;color:#6B7F7C;">(optional)</span></label>
                 <input type="text" id="rciLicense" placeholder="e.g. A-23814">
               </div>
               <div class="form-group">
-                <label>Years of Experience *</label>
+                <label>Years of Experience <span style="font-weight:400;color:#6B7F7C;">(optional)</span></label>
                 <input type="number" id="expYears" placeholder="e.g. 9" min="0" max="60">
               </div>
               <div class="form-group full">
-                <label>Highest Qualification *</label>
+                <label>Highest Qualification <span style="font-weight:400;color:#6B7F7C;">(optional)</span></label>
                 <input type="text" id="qualification" placeholder="e.g. M.Phil Clinical Psychology, NIMHANS">
               </div>
               <div class="form-group full">
-                <label>Primary Specializations</label>
+                <label>Primary Specializations <span style="font-weight:400;color:#6B7F7C;">(optional)</span></label>
                 <input type="text" id="specializations" placeholder="e.g. Nuclear Family, Only Child, Anxiety (comma separated)">
               </div>
+            </div>
+            <div style="background:#EEF7F5;border-radius:9px;padding:10px 14px;font-size:12px;color:#1E5C51;margin-top:8px;">
+              ℹ️ You can add your RCI license and qualifications later. Your profile will remain private until our team verifies your credentials and activates your account.
             </div>
           </div>
         </div>
@@ -281,23 +284,85 @@
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  function validateEmail(email) {
+    // RFC-5322 simplified — rejects obviously bad formats
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+  }
+
+  function validatePhone(phone) {
+    // Allow empty, or digits/spaces/hyphens/parens/+ — min 7 digits
+    if (!phone) return true;
+    const digits = phone.replace(/\D/g, '');
+    return digits.length >= 7 && digits.length <= 15;
+  }
+
+  function passwordStrengthScore(pw) {
+    let s = 0;
+    if (pw.length >= 8)          s++;
+    if (/[A-Z]/.test(pw))        s++;
+    if (/[0-9]/.test(pw))        s++;
+    if (/[^A-Za-z0-9]/.test(pw)) s++;
+    return s;
+  }
+
   async function handleSignup(e) {
     e.preventDefault();
-    const password = document.getElementById('password').value;
-    const confirm  = document.getElementById('confirmPassword').value;
-    if (password !== confirm) { showError('Passwords do not match.'); return; }
+    document.getElementById('errorMsg').classList.remove('show');
+
+    const nameVal     = document.getElementById('name').value.trim();
+    const emailVal    = document.getElementById('email').value.trim();
+    const phoneVal    = document.getElementById('phone').value.trim();
+    const password    = document.getElementById('password').value;
+    const confirm     = document.getElementById('confirmPassword').value;
+
+    // ── Client-side validation ──────────────────────────────────────────
+    if (nameVal.length < 2) {
+      showError('Please enter your full name (at least 2 characters).');
+      document.getElementById('name').focus();
+      return;
+    }
+    if (nameVal.length > 120) {
+      showError('Name is too long (maximum 120 characters).');
+      document.getElementById('name').focus();
+      return;
+    }
+    if (!validateEmail(emailVal)) {
+      showError('Please enter a valid email address (e.g. you@example.com).');
+      document.getElementById('email').focus();
+      return;
+    }
+    if (phoneVal && !validatePhone(phoneVal)) {
+      showError('Phone number looks invalid. Please enter 7–15 digits (spaces, hyphens, and + allowed).');
+      document.getElementById('phone').focus();
+      return;
+    }
+    if (password.length < 8) {
+      showError('Password must be at least 8 characters long.');
+      document.getElementById('password').focus();
+      return;
+    }
+    if (passwordStrengthScore(password) < 3) {
+      showError('Password is too weak. Include at least one uppercase letter, one number, and one special character (e.g. !, @, #).');
+      document.getElementById('password').focus();
+      return;
+    }
+    if (password !== confirm) {
+      showError('Passwords do not match. Please re-enter your password.');
+      document.getElementById('confirmPassword').focus();
+      return;
+    }
+    // ── End validation ──────────────────────────────────────────────────
 
     const btn = document.getElementById('submitBtn');
     btn.classList.add('loading');
     btn.disabled = true;
-    document.getElementById('errorMsg').classList.remove('show');
 
     const body = {
-      name:     document.getElementById('name').value.trim(),
-      email:    document.getElementById('email').value.trim(),
+      name:     nameVal,
+      email:    emailVal,
       password,
       role:     selectedRole,
-      phone:    document.getElementById('phone').value.trim() || undefined,
+      phone:    phoneVal || undefined,
       city:     document.getElementById('city').value.trim() || undefined
     };
 
@@ -322,10 +387,38 @@
         return;
       }
 
-      localStorage.setItem('kv_token', data.accessToken);
-      localStorage.setItem('kv_user', JSON.stringify(data.user));
-
+      // Do NOT auto-login — require explicit sign-in for security
       document.getElementById('formCard').classList.remove('show');
       const sc = document.getElementById('successCard');
       sc.classList.add('show');
-      document.getElementById('successMsg').textContent = `Welcome, ${data.user.name}! Your account is ready.${
+      document.getElementById('successMsg').textContent =
+        data.user.role === 'kinmentor'
+          ? `Welcome, ${data.user.name}! Your account has been created. Our team will review your credentials before activating your profile. Please sign in to access your dashboard.`
+          : `Welcome, ${data.user.name}! Your account is ready. Please sign in to access your wellness dashboard.`;
+      document.getElementById('dashboardBtn').textContent = 'Sign In →';
+      document.getElementById('dashboardBtn').href = 'kinveda-signin.html';
+      setTimeout(() => {
+        window.location.href = 'kinveda-signin.html';
+      }, 3000);
+    } catch (err) {
+      showError('Connection error. Is the server running?');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  // ─── Pre-select role from URL param (?role=kinmentor / ?role=kinmember) ─────
+  // Runs after DOM is ready so all elements are guaranteed to exist.
+  // If a role is in the URL (e.g. arriving from a portal card on the landing
+  // page), skip the role-selection step and go straight to the signup form.
+  document.addEventListener('DOMContentLoaded', function() {
+    const urlRole = new URLSearchParams(window.location.search).get('role');
+    if (urlRole === 'kinmentor' || urlRole === 'kinmember') {
+      selectRole(urlRole);
+    }
+  });
+</script>
+<script src="kinveda-api.js"></script>
+</body>
+</html>
