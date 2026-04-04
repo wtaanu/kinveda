@@ -5,7 +5,7 @@ const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const { getDb } = require('../config/database');
-const { requireAuth, requireKinMentor, requireAnyAuth } = require('../middleware/auth');
+const { requireAuth, requireKinMentor, requireAnyAuth, optionalAuth } = require('../middleware/auth');
 const { encrypt, decrypt, encryptJSON, decryptJSON } = require('../middleware/encrypt');
 const { sendNotesAssignedEmail } = require('../config/mailer');
 
