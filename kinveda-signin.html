@@ -103,7 +103,7 @@
       <h2>Welcome back</h2>
       <p class="sub">Sign in to your KinVeda account</p>
 
-      <div class="role-tabs">
+      <div class="role-tabs" id="roleTabs">
         <div class="role-tab active" id="tab-member" onclick="setRole('kinmember')">
           <div class="rt-icon">👤</div>
           <div class="rt-label">KinMember</div>
@@ -113,6 +113,12 @@
           <div class="rt-icon">🧑‍⚕️</div>
           <div class="rt-label">KinMentor</div>
           <div class="rt-sub">I'm a professional</div>
+        </div>
+        <!-- Admin tab — only shown when ?role=admin is in the URL -->
+        <div class="role-tab" id="tab-admin" onclick="setRole('admin')" style="display:none;">
+          <div class="rt-icon">🔐</div>
+          <div class="rt-label">Admin</div>
+          <div class="rt-sub">Command Centre</div>
         </div>
       </div>
 
@@ -154,6 +160,8 @@
     selectedRole = role;
     document.getElementById('tab-member').classList.toggle('active', role === 'kinmember');
     document.getElementById('tab-mentor').classList.toggle('active', role === 'kinmentor');
+    const adminTab = document.getElementById('tab-admin');
+    if (adminTab) adminTab.classList.toggle('active', role === 'admin');
   }
 
   function togglePass() {
@@ -211,17 +219,22 @@
     }
   }
 
-  // ─── Pre-select role from URL param (?role=kinmentor) ──────────────────────
+  // ─── Pre-select role from URL param (?role=kinmentor / ?role=admin) ─────────
   // Set when coming from landing page portal buttons so the correct tab is pre-selected
   (function() {
     const urlRole = new URLSearchParams(window.location.search).get('role');
     if (urlRole === 'kinmentor' || urlRole === 'kinmember') {
       setRole(urlRole);
-    }
-    // Also pre-fill signup link with the same role
-    const signupEl = document.querySelector('.signup-link a');
-    if (signupEl && urlRole) {
-      signupEl.href = `kinveda-signup.html?role=${urlRole}`;
+      // Pre-fill signup link with the same role
+      const signupEl = document.querySelector('.signup-link a');
+      if (signupEl) signupEl.href = `kinveda-signup.html?role=${urlRole}`;
+    } else if (urlRole === 'admin') {
+      // Reveal and activate the admin tab; admins cannot self-register
+      const adminTab = document.getElementById('tab-admin');
+      if (adminTab) adminTab.style.display = '';
+      setRole('admin');
+      const signupDiv = document.querySelector('.signup-link');
+      if (signupDiv) signupDiv.style.display = 'none';
     }
   })();
 
@@ -260,6 +273,13 @@
           if (requestedRole && requestedRole !== u.role) {
             // Pre-select the correct tab but let the user sign in explicitly
             document.addEventListener('DOMContentLoaded', () => {
+              // Show admin tab if needed, then select the requested role
+              if (requestedRole === 'admin') {
+                const adminTab = document.getElementById('tab-admin');
+                if (adminTab) adminTab.style.display = '';
+                const signupDiv = document.querySelector('.signup-link');
+                if (signupDiv) signupDiv.style.display = 'none';
+              }
               if (typeof setRole === 'function') setRole(requestedRole);
             });
           } else {

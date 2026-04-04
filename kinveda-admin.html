@@ -659,13 +659,13 @@
   function initAdminPage() {
     adminUser = KV.getUser();
     if (!adminUser) {
-      // Not signed in — redirect to signin
-      window.location.href = 'kinveda-signin.html';
+      // Not signed in — redirect to admin login tab
+      window.location.href = 'kinveda-signin.html?role=admin';
       return;
     }
     if (adminUser.role !== 'admin') {
-      // Wrong role
-      window.location.href = 'kinveda-signin.html';
+      // Wrong role — send to admin login
+      window.location.href = 'kinveda-signin.html?role=admin';
       return;
     }
     // Show name
@@ -966,10 +966,22 @@
   async function loadSessionRequests() {
     const el = document.getElementById('sessReqList');
     if (el) el.innerHTML = '<div style="text-align:center;padding:30px;color:#78716C;">Loading…</div>';
-    const res = await adminFetch('/sessions/pending');
-    if (!res) return;
-    const data = await res.json().catch(() => ({}));
+
+    // Fetch pending requests + full mentor list (for reassignment dropdown) in parallel
+    const [reqRes, usersRes] = await Promise.all([
+      adminFetch('/sessions/pending'),
+      adminFetch('/users?limit=100')
+    ]);
+    if (!reqRes) return;
+    const data = await reqRes.json().catch(() => ({}));
     const reqs = data.requests || [];
+
+    // Build mentor options for the reassign dropdown
+    let allMentors = [];
+    if (usersRes && usersRes.ok) {
+      const ud = await usersRes.json().catch(() => ({}));
+      allMentors = (ud.users || []).filter(u => u.role === 'kinmentor');
+    }
 
     // Update sidebar badge
     const badge = document.getElementById('badgeSessReq');
@@ -981,13 +993,17 @@
       return;
     }
 
-    el.innerHTML = reqs.map(r => `
+    el.innerHTML = reqs.map(r => {
+      const mentorOpts = allMentors.map(m =>
+        `<option value="${m.id}" ${m.id === r.mentorId ? 'selected' : ''}>${escAdmin(m.name)}${m.id === r.mentorId ? ' ✦ requested' : ''}</option>`
+      ).join('');
+      return `
       <div style="border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px;background:#FAFAF7;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
           <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">KinMember</div>
             <div style="font-size:14px;font-weight:700;margin-top:2px;">${escAdmin(r.memberName)}</div>
             <div style="font-size:12px;color:#78716C;">${r.memberEmail}</div></div>
-          <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Requested Mentor</div>
+          <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Requested KinMentor</div>
             <div style="font-size:14px;font-weight:700;margin-top:2px;">${escAdmin(r.mentorName)}</div>
             <div style="font-size:12px;color:#78716C;">${r.mentorEmail}</div></div>
           <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Duration</div>
@@ -997,19 +1013,28 @@
           ${r.message ? `<div style="grid-column:1/-1;"><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Member's Note</div>
             <div style="font-size:13px;margin-top:2px;font-style:italic;color:#57534E;">"${escAdmin(r.message)}"</div></div>` : ''}
         </div>
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;border-top:1px solid var(--border);padding-top:14px;">
-          <div style="flex:1;min-width:200px;">
-            <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">Approve with Date & Time (IST)</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--border);padding-top:14px;margin-bottom:12px;">
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">📅 Session Date & Time (IST)</label>
             <input type="datetime-local" id="approveDt-${r.id}" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;">
           </div>
-          <button onclick="approveSessionRequest(${r.id})" style="background:#059669;color:white;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
-            ✅ Approve Session
+          <div>
+            <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">🧑‍⚕️ Assign KinMentor</label>
+            <select id="reassignMentor-${r.id}" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:white;">
+              ${mentorOpts || `<option value="${r.mentorId}">${escAdmin(r.mentorName)} (requested)</option>`}
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+          <button onclick="approveSessionRequest(${r.id})" style="background:#059669;color:white;border:none;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            ✅ Approve &amp; Assign
           </button>
           <button onclick="rejectSessionRequest(${r.id})" style="background:#DC2626;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
             ✕ Decline
           </button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
   }
 
   function escAdmin(str) {
@@ -1019,6 +1044,7 @@
 
   async function approveSessionRequest(sessionId) {
     const dtInput = document.getElementById('approveDt-' + sessionId);
+    const reassignSel = document.getElementById('reassignMentor-' + sessionId);
     if (!dtInput || !dtInput.value) {
       KV.showToast('Please select a date and time before approving.', 'warning');
       dtInput?.focus();
@@ -1029,14 +1055,15 @@
       KV.showToast('Please choose a future date and time.', 'warning');
       return;
     }
+    const assignedMentorId = reassignSel ? parseInt(reassignSel.value) || null : null;
     const res = await adminFetch(`/sessions/${sessionId}/approve`, {
       method: 'PATCH',
-      body: JSON.stringify({ scheduledAt })
+      body: JSON.stringify({ scheduledAt, assignedMentorId })
     });
     if (!res) return;
     const data = await res.json().catch(() => ({}));
     if (data.success) {
-      KV.showToast('✅ Session approved! Confirmation emails sent to both member and mentor.', 'success');
+      KV.showToast('✅ Session approved! Confirmation emails sent to both parties.', 'success');
       loadSessionRequests();
     } else {
       KV.showToast(data.message || 'Approval failed.', 'error');

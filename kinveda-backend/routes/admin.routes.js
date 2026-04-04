@@ -312,7 +312,7 @@ router.get('/sessions/pending', (req, res) => {
   });
 });
 
-// ─── PATCH: Approve Session Request (admin sets date/time) ───────────────────
+// ─── PATCH: Approve Session Request (admin sets date/time, optionally reassigns mentor) ────
 router.patch('/sessions/:id/approve',
   [body('scheduledAt').isInt({ min: 1 }).withMessage('Valid scheduled timestamp required.')],
   (req, res) => {
@@ -320,11 +320,12 @@ router.patch('/sessions/:id/approve',
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const sessionId = parseInt(req.params.id);
-    const { scheduledAt } = req.body;
+    const { scheduledAt, assignedMentorId } = req.body;
     const db = getDb();
     const crypto = require('crypto');
 
-    const session = db.prepare(`
+    // Load the pending session
+    let session = db.prepare(`
       SELECT bs.*, um.name_enc AS member_name_enc, um.email AS member_email,
              ut.name_enc AS mentor_name_enc, ut.email AS mentor_email
       FROM booking_sessions bs
@@ -335,19 +336,38 @@ router.patch('/sessions/:id/approve',
 
     if (!session) return res.status(404).json({ success: false, message: 'Pending session request not found.' });
 
+    // If admin is reassigning to a different mentor, validate and apply
+    let finalMentorId = session.mentor_id;
+    if (assignedMentorId && parseInt(assignedMentorId) !== session.mentor_id) {
+      const newMentor = db.prepare(
+        'SELECT name_enc, email FROM users WHERE id = ? AND role = ? AND is_active = 1'
+      ).get(parseInt(assignedMentorId), 'kinmentor');
+      if (!newMentor) return res.status(400).json({ success: false, message: 'Selected mentor not found or inactive.' });
+      finalMentorId = parseInt(assignedMentorId);
+      // Override session fields so emails go to the assigned mentor
+      session = {
+        ...session,
+        mentor_id: finalMentorId,
+        mentor_name_enc: newMentor.name_enc,
+        mentor_email: newMentor.email
+      };
+    }
+
     const roomName = `kv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const now = Math.floor(Date.now() / 1000);
 
     db.prepare(`
       UPDATE booking_sessions
-      SET status = 'confirmed', scheduled_at = ?, video_room = ?, payment_status = 'pending', updated_at = ?
+      SET status = 'confirmed', scheduled_at = ?, video_room = ?,
+          mentor_id = ?, payment_status = 'pending', updated_at = ?
       WHERE id = ?
-    `).run(scheduledAt, roomName, now, sessionId);
+    `).run(scheduledAt, roomName, finalMentorId, now, sessionId);
 
     // Create video session entry
     db.prepare('INSERT OR IGNORE INTO video_sessions (session_id, room_name, created_at) VALUES (?, ?, ?)').run(sessionId, roomName, now);
 
-    auditLog(db, req.user.id, 'APPROVE_SESSION', 'booking_sessions', sessionId, { scheduledAt }, req.ip);
+    auditLog(db, req.user.id, 'APPROVE_SESSION', 'booking_sessions', sessionId,
+      { scheduledAt, assignedMentorId: finalMentorId }, req.ip);
 
     // Send approval email to member
     try {
@@ -361,7 +381,7 @@ router.patch('/sessions/:id/approve',
       ).catch(console.error);
     } catch(e) { console.error('[mail] approve→member:', e.message); }
 
-    // Send approval email to mentor
+    // Send approval email to assigned mentor
     try {
       sendSessionApprovedEmail(
         session.mentor_email,
@@ -373,7 +393,7 @@ router.patch('/sessions/:id/approve',
       ).catch(console.error);
     } catch(e) { console.error('[mail] approve→mentor:', e.message); }
 
-    return res.json({ success: true, sessionId, videoRoom: roomName });
+    return res.json({ success: true, sessionId, videoRoom: roomName, assignedMentorId: finalMentorId });
   }
 );
 

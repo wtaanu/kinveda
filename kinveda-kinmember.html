@@ -409,13 +409,18 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
       </div>
 
       <!-- Request Session Modal -->
-      <div id="reqSessModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;">
-        <div style="background:white;border-radius:20px;padding:32px;max-width:500px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.18);">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+      <div id="reqSessModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:16px;">
+        <div style="background:white;border-radius:20px;padding:28px 32px;max-width:680px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.22);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
             <h3 style="font-size:18px;font-weight:800;">📅 Request a Session</h3>
             <button onclick="closeRequestSessionModal()" style="background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted);">✕</button>
           </div>
-          <div id="reqSessMentorList" style="margin-bottom:16px;"><div class="loading-state">Loading mentors…</div></div>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:18px;">Choose your preferred KinMentor. Admin will confirm with the same or best-fit mentor based on availability.</p>
+
+          <!-- Mentor Cards -->
+          <div id="reqSessMentorList" style="margin-bottom:18px;"><div class="loading-state">Loading mentors…</div></div>
+
+          <!-- Duration -->
           <div style="margin-bottom:14px;">
             <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Session Duration</label>
             <div style="display:flex;gap:8px;">
@@ -427,9 +432,11 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
               </label>
             </div>
           </div>
+
+          <!-- Message -->
           <div style="margin-bottom:18px;">
-            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Message to Admin <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
-            <textarea id="reqSessMessage" rows="3" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="e.g. I'd prefer a morning slot, I'm dealing with anxiety…"></textarea>
+            <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px;">Note to Admin <span style="font-weight:400;color:var(--muted);">(optional)</span></label>
+            <textarea id="reqSessMessage" rows="3" style="width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;resize:vertical;" placeholder="e.g. I'd prefer morning slots, I'm dealing with anxiety and need a calm space…"></textarea>
           </div>
           <div id="reqSessError" style="display:none;background:#FEF2F2;border:1px solid #FCA5A5;border-radius:8px;padding:10px 14px;font-size:13px;color:#DC2626;margin-bottom:14px;"></div>
           <button class="btn-p" onclick="submitSessionRequest()" id="reqSessSubmitBtn" style="width:100%;padding:13px;">Send Request →</button>
@@ -1360,52 +1367,57 @@ async function showRequestSessionModal() {
   document.getElementById('reqSessError').style.display = 'none';
   _selectedReqMentorId = null;
 
-  // Load mentor list
   const listEl = document.getElementById('reqSessMentorList');
   listEl.innerHTML = '<div class="loading-state">Loading mentors…</div>';
 
-  // If assigned mentor, only show them; otherwise public list
-  const mentorId = profileData?.assignedMentorId;
-  if (mentorId) {
-    const res = await KV.get(`/api/kinmentor/public/${mentorId}`);
-    const data = res ? await res.json().catch(() => ({})) : {};
-    const m = data.mentor || data.profile;
-    if (m) {
-      _reqMentors = [{ id: mentorId, name: m.name, qualification: m.qualification }];
-    } else {
-      _reqMentors = [];
-    }
-  } else {
-    const res = await KV.get('/api/kinmentor/public-list');
-    const data = res ? await res.json().catch(() => ({})) : {};
-    _reqMentors = (data.mentors || []).map(m => ({ id: m.id, name: m.name, qualification: m.qualification }));
-  }
+  // Always show ALL public mentors so member can pick their preferred one
+  // Admin will confirm same or assign a different mentor on approval
+  const res = await KV.get('/api/kinmentor/public-list');
+  const data = res ? await res.json().catch(() => ({})) : {};
+  _reqMentors = data.mentors || [];
 
   if (!_reqMentors.length) {
-    listEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">No available mentors at this time. Please check back soon.</p>';
+    listEl.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:16px;text-align:center;">No available mentors at this time. Please check back soon.</p>';
     return;
   }
 
   listEl.innerHTML = `
-    <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px;">Select a KinMentor</label>
-    <div style="display:flex;flex-direction:column;gap:8px;">
+    <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">Choose Your Preferred KinMentor</label>
+    <div style="display:flex;flex-direction:column;gap:10px;max-height:340px;overflow-y:auto;padding-right:4px;">
       ${_reqMentors.map(m => `
-        <label style="display:flex;align-items:center;gap:12px;border:2px solid var(--border);border-radius:10px;padding:12px;cursor:pointer;" class="req-mentor-opt" data-id="${m.id}">
-          <input type="radio" name="reqMentor" value="${m.id}" style="width:18px;height:18px;accent-color:var(--primary);" onchange="selectReqMentor(${m.id})">
-          <div>
-            <div style="font-size:14px;font-weight:700;">${KV.esc(m.name)}</div>
-            <div style="font-size:12px;color:var(--muted);">${KV.esc(m.qualification || 'KinMentor')}</div>
+        <div class="req-mentor-opt" data-id="${m.id}" onclick="selectReqMentor(${m.id})"
+          style="border:2px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .15s,background .15s;">
+          <!-- Row 1: name + rating -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:4px;">
+            <div style="flex:1;">
+              <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span style="font-size:14px;font-weight:800;">${KV.esc(m.name)}</span>
+                ${m.isRciVerified ? '<span style="background:#EEF7F5;color:#2D7D6F;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;border:1px solid #2D7D6F;">✓ RCI</span>' : ''}
+              </div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px;">${KV.esc(m.qualification || 'KinMentor')}${m.city ? ' &nbsp;·&nbsp; ' + KV.esc(m.city) : ''}${m.experienceYears > 0 ? ' &nbsp;·&nbsp; ' + m.experienceYears + ' yrs' : ''}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0;">
+              ${m.avgRating > 0 ? `<div style="font-size:13px;font-weight:700;color:#D97706;">★ ${m.avgRating.toFixed(1)}</div><div style="font-size:11px;color:var(--muted);">${m.totalReviews} review${m.totalReviews !== 1 ? 's' : ''}</div>` : ''}
+            </div>
           </div>
-          <a href="kinveda-kinmentor-profile.html?id=${m.id}" target="_blank" style="margin-left:auto;font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;">View Profile ↗</a>
-        </label>`).join('')}
+          <!-- Bio -->
+          ${m.bio ? `<p style="font-size:12px;color:#57534E;line-height:1.5;margin:6px 0;">${KV.esc(m.bio.length > 130 ? m.bio.slice(0,130) + '…' : m.bio)}</p>` : ''}
+          <!-- Specializations -->
+          ${m.specializations?.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px;margin:6px 0;">${m.specializations.slice(0,4).map(s=>`<span style="background:#F5F0FF;color:#6B46C1;font-size:11px;padding:2px 8px;border-radius:6px;">${KV.esc(s)}</span>`).join('')}</div>` : ''}
+          <!-- Fees + package -->
+          <div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;align-items:center;">
+            ${m.rate30min ? `<span style="font-size:12px;font-weight:700;color:var(--primary-dark);">₹${m.rate30min.toLocaleString('en-IN')}<span style="font-weight:400;color:var(--muted);"> / 30 min</span></span>` : ''}
+            ${m.rate60min ? `<span style="font-size:12px;font-weight:700;color:var(--primary-dark);">₹${m.rate60min.toLocaleString('en-IN')}<span style="font-weight:400;color:var(--muted);"> / 60 min</span></span>` : ''}
+            ${m.packageSessions ? `<span style="font-size:11px;color:var(--muted);">Package: ${m.packageSessions}×/mo · ${m.packageMins} min/session</span>` : ''}
+            <a href="kinveda-kinmentor-profile.html?id=${m.id}" target="_blank"
+               style="margin-left:auto;font-size:12px;color:var(--primary);text-decoration:none;font-weight:600;"
+               onclick="event.stopPropagation();">View Full Profile ↗</a>
+          </div>
+        </div>`).join('')}
     </div>`;
 
-  // Auto-select if only one mentor
-  if (_reqMentors.length === 1) {
-    _selectedReqMentorId = _reqMentors[0].id;
-    const radio = listEl.querySelector('input[type=radio]');
-    if (radio) { radio.checked = true; highlightReqMentor(_reqMentors[0].id); }
-  }
+  // Auto-select the single mentor if there is only one
+  if (_reqMentors.length === 1) selectReqMentor(_reqMentors[0].id);
 }
 
 function selectReqMentor(id) {
@@ -1415,8 +1427,10 @@ function selectReqMentor(id) {
 
 function highlightReqMentor(id) {
   document.querySelectorAll('.req-mentor-opt').forEach(el => {
-    el.style.borderColor = parseInt(el.dataset.id) === id ? 'var(--primary)' : 'var(--border)';
-    el.style.background  = parseInt(el.dataset.id) === id ? '#EEF7F5' : '';
+    const isSelected = parseInt(el.dataset.id) === id;
+    el.style.borderColor = isSelected ? 'var(--primary)'  : 'var(--border)';
+    el.style.background  = isSelected ? '#EEF7F5' : '';
+    el.style.boxShadow   = isSelected ? '0 0 0 3px rgba(45,125,111,0.12)' : '';
   });
 }
 
