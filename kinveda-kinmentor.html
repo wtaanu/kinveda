@@ -951,53 +951,54 @@ async function loadRevenue() {
   if (!res) return;
   const data = await res.json();
   if (!data.success) return;
-  const r = data.revenue;
+  // Backend returns: data.summary, data.monthly, data.byMember, data.payouts
+  const summary = data.summary || {};
+  const months  = data.monthly  || [];
+  const members = data.byMember || [];
+  const payouts = data.payouts  || [];
 
   // Stats
-  document.getElementById('revTotal').textContent    = KV.fmtINR(r.totalEarned);
-  document.getElementById('revPaidOut').textContent  = KV.fmtINR(r.totalPaidOut);
-  document.getElementById('revBalance').textContent  = KV.fmtINR((r.totalEarned||0) - (r.totalPaidOut||0));
+  document.getElementById('revTotal').textContent    = KV.fmtINR(summary.totalEarned);
+  document.getElementById('revPaidOut').textContent  = KV.fmtINR(summary.totalPaidOut);
+  document.getElementById('revBalance').textContent  = KV.fmtINR(summary.balance ?? (summary.totalEarned||0) - (summary.totalPaidOut||0));
 
-  // Monthly bar chart
+  // Monthly bar chart — backend column is `gross`
   const monthlyEl = document.getElementById('revMonthlyChart');
-  const months = r.monthly || [];
   if (!months.length) { monthlyEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">No data yet.</p>'; }
   else {
-    const maxAmt = Math.max(...months.map(m=>m.amount), 1);
+    const maxAmt = Math.max(...months.map(m => m.gross || 0), 1);
     monthlyEl.innerHTML = months.map(m => `
       <div class="rev-bar-row">
         <div class="rev-bar-label">${m.month}</div>
-        <div class="rev-bar-track"><div class="rev-bar-fill" style="width:${Math.round((m.amount/maxAmt)*100)}%"></div></div>
-        <div class="rev-bar-amt">${KV.fmtINR(m.amount)}</div>
+        <div class="rev-bar-track"><div class="rev-bar-fill" style="width:${Math.round(((m.gross||0)/maxAmt)*100)}%"></div></div>
+        <div class="rev-bar-amt">${KV.fmtINR(m.gross||0)}</div>
       </div>`).join('');
   }
 
-  // Payouts received
+  // Payouts received — backend columns: payout_amount, processed_at, notes
   const payoutsEl = document.getElementById('revPayouts');
-  const payouts = r.payouts || [];
   if (!payouts.length) { payoutsEl.innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">No payouts received yet.</p>'; }
   else {
     payoutsEl.innerHTML = payouts.map(p => `
       <div class="payout-item">
         <div>
-          <div style="font-size:13px;font-weight:700;">${KV.fmtINR(p.payoutAmount)}</div>
-          <div style="font-size:11px;color:var(--muted);">${p.note||'Payout'} · ${KV.fmtDate(p.createdAt)}</div>
+          <div style="font-size:13px;font-weight:700;">${KV.fmtINR(p.payout_amount||p.payoutAmount||0)}</div>
+          <div style="font-size:11px;color:var(--muted);">${p.notes||'Payout'} · ${KV.fmtDate(p.processed_at||p.createdAt)}</div>
         </div>
-        <span style="font-size:11px;font-weight:700;color:var(--green);">✓ ${p.status}</span>
+        <span style="font-size:11px;font-weight:700;color:var(--green);">✓ Processed</span>
       </div>`).join('');
   }
 
-  // By member
+  // By member — backend columns: memberName, sessions, total_paid
   const byMemberEl = document.getElementById('revByMember');
-  const members = r.byMember || [];
   if (!members.length) { byMemberEl.innerHTML = '<p style="font-size:13px;color:var(--muted);">No member data yet.</p>'; }
   else {
     byMemberEl.innerHTML = `<table class="member-rev-table">
       <thead><tr><th>KinMember</th><th>Sessions</th><th>Total Paid</th></tr></thead>
       <tbody>${members.map(m=>`<tr>
-        <td>${m.memberName}</td>
-        <td>${m.sessionCount}</td>
-        <td style="font-weight:700;color:var(--pd);">${KV.fmtINR(m.totalAmount)}</td>
+        <td>${KV.esc(m.memberName||m.name||'—')}</td>
+        <td>${m.sessions||m.sessionCount||0}</td>
+        <td style="font-weight:700;color:var(--pd);">${KV.fmtINR(m.total_paid||m.totalAmount||0)}</td>
       </tr>`).join('')}</tbody>
     </table>`;
   }

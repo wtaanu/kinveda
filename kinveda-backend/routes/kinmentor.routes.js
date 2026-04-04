@@ -7,6 +7,120 @@ const { body, validationResult } = require('express-validator');
 const { getDb } = require('../config/database');
 const { requireAuth, requireKinMentor, requireAnyAuth } = require('../middleware/auth');
 const { encrypt, decrypt, encryptJSON, decryptJSON } = require('../middleware/encrypt');
+const { sendNotesAssignedEmail } = require('../config/mailer');
+
+// ─── GET: Public Mentor Profile ───────────────────────────────────────────────
+// Viewable by anyone. Auth optional — if the requesting user is the mentor
+// themselves (or admin), the profile is returned even if not yet marked public.
+router.get('/public/:id', optionalAuth, (req, res) => {
+  const db = getDb();
+  const mentorId = parseInt(req.params.id);
+  if (!mentorId) return res.status(400).json({ success: false, message: 'Invalid mentor ID.' });
+
+  // Determine if the viewer has bypass rights (own profile or admin)
+  const viewerId = req.user?.id;
+  const viewerRole = req.user?.role;
+  const canViewUnpublished = (viewerId === mentorId) || (viewerRole === 'admin');
+
+  const row = db.prepare(`
+    SELECT u.id, u.name_enc, u.city_enc,
+           kp.bio_enc, kp.approach_enc, kp.qualification_enc, kp.specializations, kp.languages,
+           kp.experience_years, kp.fee_30min, kp.fee_60min, kp.fee_monthly,
+           kp.package_sessions_per_month, kp.package_mins_per_session,
+           kp.is_rci_verified, kp.is_payment_verified, kp.is_profile_public,
+           kp.avg_rating, kp.total_reviews, kp.total_sessions, kp.rci_license
+    FROM users u JOIN kinmentor_profiles kp ON kp.user_id = u.id
+    WHERE u.id = ? AND u.role = 'kinmentor' AND u.is_active = 1
+  `).get(mentorId);
+
+  if (!row) return res.status(404).json({ success: false, message: 'Mentor profile not found.' });
+  if (!row.is_profile_public && !canViewUnpublished) {
+    return res.status(404).json({ success: false, message: 'Profile is not publicly available yet.' });
+  }
+
+  const publicReviews = db.prepare(`
+    SELECT f.rating, f.comment_enc, f.created_at, kp2.family_structure
+    FROM feedback f JOIN kinmember_profiles kp2 ON kp2.user_id = f.member_id
+    WHERE f.mentor_id = ? AND f.is_public = 1 ORDER BY f.created_at DESC LIMIT 5
+  `).all(mentorId);
+
+  const posts = db.prepare(
+    'SELECT id, title, slug, category, published_at FROM blog_posts WHERE mentor_id = ? AND is_published = 1 ORDER BY published_at DESC LIMIT 3'
+  ).all(mentorId);
+
+  return res.json({
+    success: true,
+    mentor: {
+      id:               row.id,
+      name:             decrypt(row.name_enc),
+      city:             decrypt(row.city_enc),
+      bio:              decrypt(row.bio_enc),
+      approach:         decrypt(row.approach_enc),
+      qualification:    decrypt(row.qualification_enc),
+      specializations:  row.specializations ? JSON.parse(row.specializations) : [],
+      languages:        row.languages || 'Hindi, English',
+      experienceYears:  row.experience_years || 0,
+      rate30min:        row.fee_30min || 0,
+      rate60min:        row.fee_60min || 0,
+      rateMonthly:      row.fee_monthly || 0,
+      packageSessions:  row.package_sessions_per_month || 8,
+      packageMins:      row.package_mins_per_session || 50,
+      isRciVerified:    !!row.is_rci_verified,
+      isPaymentVerified: !!row.is_payment_verified,
+      isProfilePublic:  !!row.is_profile_public,
+      avgRating:        row.avg_rating || 0,
+      totalReviews:     row.total_reviews || 0,
+      totalSessions:    row.total_sessions || 0,
+      rciLicense:       row.rci_license,
+      reviews: publicReviews.map(r => ({
+        rating: r.rating,
+        comment: decrypt(r.comment_enc),
+        familyStructure: r.family_structure,
+        createdAt: r.created_at
+      })),
+      posts
+    }
+  });
+});
+
+// ─── GET: Public Mentor List (for intake / discovery page) ────────────────────
+router.get('/public-list', requireAuth, (req, res) => {
+  const db = getDb();
+  const mentors = db.prepare(`
+    SELECT u.id, u.name_enc, u.city_enc,
+           kp.bio_enc, kp.qualification_enc, kp.specializations, kp.languages, kp.experience_years,
+           kp.fee_30min, kp.fee_60min, kp.fee_monthly,
+           kp.package_sessions_per_month, kp.package_mins_per_session,
+           kp.avg_rating, kp.total_reviews, kp.is_rci_verified
+    FROM users u
+    JOIN kinmentor_profiles kp ON kp.user_id = u.id
+    WHERE u.role = 'kinmentor' AND u.is_active = 1 AND kp.is_profile_public = 1
+    ORDER BY kp.avg_rating DESC, kp.total_sessions DESC
+    LIMIT 50
+  `).all();
+
+  return res.json({
+    success: true,
+    mentors: mentors.map(m => ({
+      id:              m.id,
+      name:            decrypt(m.name_enc),
+      city:            decrypt(m.city_enc),
+      bio:             decrypt(m.bio_enc),
+      qualification:   decrypt(m.qualification_enc),
+      specializations: m.specializations ? JSON.parse(m.specializations) : [],
+      languages:       m.languages || 'Hindi, English',
+      experienceYears: m.experience_years || 0,
+      rate30min:       m.fee_30min || 0,
+      rate60min:       m.fee_60min || 0,
+      rateMonthly:     m.fee_monthly || 0,
+      packageSessions: m.package_sessions_per_month || 8,
+      packageMins:     m.package_mins_per_session || 50,
+      avgRating:       m.avg_rating || 0,
+      totalReviews:    m.total_reviews || 0,
+      isRciVerified:   !!m.is_rci_verified
+    }))
+  });
+});
 
 // ─── GET: My Dashboard Stats ─────────────────────────────────────────────────
 router.get('/dashboard', requireAuth, requireKinMentor, (req, res) => {
@@ -64,10 +178,11 @@ router.get('/profile', requireAuth, requireKinMentor, (req, res) => {
       specializations: row.specializations ? JSON.parse(row.specializations) : [],
       languages: row.languages,
       experienceYears: row.experience_years,
-      rate30min: row.rate_30min,
-      rate60min: row.rate_60min,
-      rateMonthly: row.rate_monthly,
-      availability: row.availability_json ? JSON.parse(row.availability_json) : [],
+      rate30min: row.fee_30min || 0,
+      rate60min: row.fee_60min || 0,
+      rateMonthly: row.fee_monthly || 0,
+      packageSessions: row.package_sessions_per_month || 8,
+      packageMins: row.package_mins_per_session || 50,
       isRciVerified: !!row.is_rci_verified,
       isPaymentVerified: !!row.is_payment_verified,
       isProfilePublic: !!row.is_profile_public,
@@ -78,11 +193,29 @@ router.get('/profile', requireAuth, requireKinMentor, (req, res) => {
   });
 });
 
-router.put('/profile', requireAuth, requireKinMentor, (req, res) => {
+router.put('/profile', requireAuth, requireKinMentor,
+  [
+    body('name').trim().isLength({ min: 2, max: 120 }).withMessage('Name must be 2–120 chars.'),
+    body('phone').optional({ nullable: true }).trim().isLength({ max: 20 }),
+    body('city').optional({ nullable: true }).trim().isLength({ max: 80 }),
+    body('bio').optional({ nullable: true }).trim().isLength({ max: 3000 }),
+    body('approach').optional({ nullable: true }).trim().isLength({ max: 3000 }),
+    body('qualification').optional({ nullable: true }).trim().isLength({ max: 500 }),
+    body('experienceYears').optional({ nullable: true }).isInt({ min: 0, max: 60 }),
+    body('rate30min').optional({ nullable: true }).isFloat({ min: 0 }),
+    body('rate60min').optional({ nullable: true }).isFloat({ min: 0 }),
+    body('rateMonthly').optional({ nullable: true }).isFloat({ min: 0 }),
+    body('packageSessions').optional({ nullable: true }).isInt({ min: 1, max: 60 }),
+    body('packageMins').optional({ nullable: true }).isInt({ min: 15, max: 180 }),
+  ],
+  (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
   const {
     name, phone, city, rciLicense, qualification, bio, approach,
     specializations, languages, experienceYears,
-    rate30min, rate60min, rateMonthly, availability
+    rate30min, rate60min, rateMonthly, packageSessions, packageMins, availability
   } = req.body;
 
   const db = getDb();
@@ -93,14 +226,15 @@ router.put('/profile', requireAuth, requireKinMentor, (req, res) => {
     UPDATE kinmentor_profiles SET
       rci_license = ?, qualification_enc = ?, bio_enc = ?, approach_enc = ?,
       specializations = ?, languages = ?, experience_years = ?,
-      rate_30min = ?, rate_60min = ?, rate_monthly = ?,
-      availability_json = ?, updated_at = unixepoch()
+      fee_30min = ?, fee_60min = ?, fee_monthly = ?,
+      package_sessions_per_month = ?, package_mins_per_session = ?,
+      updated_at = unixepoch()
     WHERE user_id = ?
   `).run(
     rciLicense, encrypt(qualification), encrypt(bio), encrypt(approach),
     JSON.stringify(specializations || []), languages, experienceYears || 0,
     rate30min || 0, rate60min || 0, rateMonthly || 0,
-    JSON.stringify(availability || []),
+    packageSessions || 8, packageMins || 50,
     req.user.id
   );
 
@@ -202,6 +336,21 @@ router.post('/homework', requireAuth, requireKinMentor,
     const db = getDb();
     db.prepare('INSERT INTO homework (member_id, mentor_id, session_id, task_enc, due_date) VALUES (?, ?, ?, ?, ?)')
       .run(memberId, req.user.id, sessionId || null, encrypt(task), dueDate || null);
+
+    // Notify KinMember by email
+    try {
+      const member = db.prepare('SELECT email, name_enc FROM users WHERE id = ?').get(memberId);
+      const mentor = db.prepare('SELECT name_enc FROM users WHERE id = ?').get(req.user.id);
+      if (member && mentor) {
+        sendNotesAssignedEmail(
+          member.email,
+          decrypt(member.name_enc),
+          decrypt(mentor.name_enc),
+          task.length > 80 ? task.substring(0, 80) + '…' : task
+        ).catch(console.error);
+      }
+    } catch (e) { console.error('[mail] homework notify:', e.message); }
+
     return res.status(201).json({ success: true, message: 'Homework assigned.' });
   }
 );
@@ -247,60 +396,7 @@ router.get('/reviews', requireAuth, requireKinMentor, (req, res) => {
   });
 });
 
-// ─── PUBLIC: KinMentor Profile Page (for browse/booking) ─────────────────────
-router.get('/public/:userId', (req, res) => {
-  const db = getDb();
-  const row = db.prepare(`
-    SELECT u.id, u.name_enc, u.city_enc,
-           kp.bio_enc, kp.approach_enc, kp.specializations, kp.languages,
-           kp.experience_years, kp.rate_30min, kp.rate_60min, kp.rate_monthly,
-           kp.availability_json, kp.is_rci_verified, kp.is_payment_verified,
-           kp.avg_rating, kp.total_reviews, kp.total_sessions, kp.rci_license
-    FROM users u JOIN kinmentor_profiles kp ON kp.user_id = u.id
-    WHERE u.id = ? AND kp.is_profile_public = 1 AND u.is_active = 1
-  `).get(req.params.userId);
-
-  if (!row) return res.status(404).json({ success: false, message: 'Profile not found.' });
-
-  const publicReviews = db.prepare(`
-    SELECT f.rating, f.comment_enc, f.created_at, kp.family_structure
-    FROM feedback f JOIN kinmember_profiles kp ON kp.user_id = f.member_id
-    WHERE f.mentor_id = ? AND f.is_public = 1 ORDER BY f.created_at DESC LIMIT 5
-  `).all(req.params.userId);
-
-  const posts = db.prepare('SELECT id, title, slug, category, published_at FROM blog_posts WHERE mentor_id = ? AND is_published = 1 ORDER BY published_at DESC LIMIT 3').all(req.params.userId);
-
-  return res.json({
-    success: true,
-    mentor: {
-      id: row.id,
-      name: decrypt(row.name_enc),
-      city: decrypt(row.city_enc),
-      bio: decrypt(row.bio_enc),
-      approach: decrypt(row.approach_enc),
-      specializations: row.specializations ? JSON.parse(row.specializations) : [],
-      languages: row.languages,
-      experienceYears: row.experience_years,
-      rate30min: row.rate_30min,
-      rate60min: row.rate_60min,
-      rateMonthly: row.rate_monthly,
-      availability: row.availability_json ? JSON.parse(row.availability_json) : [],
-      isRciVerified: !!row.is_rci_verified,
-      isPaymentVerified: !!row.is_payment_verified,
-      avgRating: row.avg_rating,
-      totalReviews: row.total_reviews,
-      totalSessions: row.total_sessions,
-      rciLicense: row.rci_license,
-      reviews: publicReviews.map(r => ({
-        rating: r.rating,
-        comment: decrypt(r.comment_enc),
-        familyStructure: r.family_structure,
-        createdAt: r.created_at
-      })),
-      posts
-    }
-  });
-});
+// Note: /public/:id is defined above and handles both authenticated and anonymous viewing.
 
 // ─── AVAILABILITY SLOTS ───────────────────────────────────────────────────────
 // GET /api/kinmentor/availability — my current slots
@@ -494,6 +590,84 @@ router.post('/messages/:memberId', requireAuth, requireKinMentor, (req, res) => 
     .run(req.user.id, memberId, encrypt(message.trim()));
 
   res.json({ success: true });
+});
+
+// ─── GET / PUT: Billing / Payment Settlement Setup ───────────────────────────
+// GET: Returns current payment mode + masked bank details
+router.get('/billing', requireAuth, requireKinMentor, (req, res) => {
+  const db = getDb();
+  const row = db.prepare(`
+    SELECT payment_mode, bank_account_enc, bank_ifsc_enc, bank_holder_enc,
+           bank_verified, bank_verify_note
+    FROM kinmentor_profiles WHERE user_id = ?
+  `).get(req.user.id);
+
+  if (!row) return res.status(404).json({ success: false, message: 'Profile not found.' });
+
+  // Decrypt and mask account number for display
+  const rawAccount = row.bank_account_enc ? decrypt(row.bank_account_enc) : '';
+  const maskedAccount = rawAccount.length > 4
+    ? '•'.repeat(rawAccount.length - 4) + rawAccount.slice(-4)
+    : rawAccount;
+
+  return res.json({
+    success: true,
+    billing: {
+      paymentMode:     row.payment_mode || 'offline',
+      bankHolder:      row.bank_holder_enc ? decrypt(row.bank_holder_enc) : '',
+      bankAccountMasked: maskedAccount,
+      bankIfsc:        row.bank_ifsc_enc ? decrypt(row.bank_ifsc_enc) : '',
+      bankVerified:    !!row.bank_verified,
+      bankVerifyNote:  row.bank_verify_note || ''
+    }
+  });
+});
+
+// PUT: Update payment mode and bank details
+router.put('/billing', requireAuth, requireKinMentor, [
+  body('paymentMode').isIn(['offline', 'online'])
+], (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
+
+  const { paymentMode, bankAccount, bankIfsc, bankHolder } = req.body;
+  const db = getDb();
+
+  // Validate IFSC format for online mode
+  if (paymentMode === 'online') {
+    if (!bankAccount?.trim() || !bankIfsc?.trim() || !bankHolder?.trim()) {
+      return res.status(400).json({ success: false, message: 'Bank account number, IFSC code, and account holder name are required for online payments.' });
+    }
+    const ifscPattern = /^[A-Z]{4}0[A-Z0-9]{6}$/;
+    if (!ifscPattern.test(bankIfsc.trim().toUpperCase())) {
+      return res.status(400).json({ success: false, message: 'Invalid IFSC code format. Example: SBIN0001234' });
+    }
+  }
+
+  db.prepare(`
+    UPDATE kinmentor_profiles SET
+      payment_mode = ?,
+      bank_account_enc = ?,
+      bank_ifsc_enc = ?,
+      bank_holder_enc = ?,
+      bank_verified = 0,
+      bank_verify_note = 'Pending admin verification',
+      updated_at = unixepoch()
+    WHERE user_id = ?
+  `).run(
+    paymentMode,
+    bankAccount  ? encrypt(bankAccount.trim())  : null,
+    bankIfsc     ? encrypt(bankIfsc.trim().toUpperCase()) : null,
+    bankHolder   ? encrypt(bankHolder.trim())   : null,
+    req.user.id
+  );
+
+  return res.json({
+    success: true,
+    message: paymentMode === 'online'
+      ? 'Bank details saved. Our team will verify your account within 24 hours.'
+      : 'Payment mode set to offline. You will receive payments manually and mark sessions as paid.'
+  });
 });
 
 module.exports = router;

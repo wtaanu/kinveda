@@ -194,31 +194,11 @@
     </div>
 
     <!-- MY APPROACH -->
-    <div class="about-card">
+    <div class="about-card" id="approachCard">
       <h2>🧠 Therapeutic Approach</h2>
-      <p>This KinMentor uses evidence-based methods tailored to each family's unique dynamics. Approaches typically include:</p>
-      <div class="approach-grid" id="approachGrid">
-        <div class="approach-item">
-          <div class="a-icon">🔍</div>
-          <h4>Cognitive Behavioral Therapy (CBT)</h4>
-          <p>Identifying and challenging core beliefs that drive conflict and anxiety in family relationships.</p>
-        </div>
-        <div class="approach-item">
-          <div class="a-icon">🌿</div>
-          <h4>Validation Over Advice</h4>
-          <p>Listening deeply before offering solutions, so you feel genuinely heard in every session.</p>
-        </div>
-        <div class="approach-item">
-          <div class="a-icon">🧬</div>
-          <h4>Family Systems Mapping</h4>
-          <p>Using genograms to map multi-generational patterns and break cycles — not just manage symptoms.</p>
-        </div>
-        <div class="approach-item">
-          <div class="a-icon">📋</div>
-          <h4>Practical Homework</h4>
-          <p>Structured exercises — boundary scripts, journaling prompts, and "third space" activities — between sessions.</p>
-        </div>
-      </div>
+      <!-- approachText is populated from the mentor's actual approach data -->
+      <p id="approachIntro">This KinMentor uses evidence-based methods tailored to each family's unique dynamics.</p>
+      <div id="approachGrid" style="margin-top:12px;"></div>
     </div>
 
     <!-- BLOG POSTS -->
@@ -422,6 +402,34 @@
         quoteEl.style.display = 'block';
       }
 
+      // Therapeutic Approach — show mentor's own approach text if available,
+      // otherwise show their specializations as approach items
+      const approachGrid = document.getElementById('approachGrid');
+      const approachIntro = document.getElementById('approachIntro');
+      if (p.approach) {
+        // Mentor has written their approach — display it as a styled block
+        approachIntro.style.display = 'none'; // hide generic intro
+        approachGrid.innerHTML = `<div style="background:#EEF7F5;border-left:4px solid var(--primary);border-radius:0 12px 12px 0;padding:18px 20px;font-size:15px;line-height:1.8;color:var(--text-muted);">${p.approach.replace(/\n/g, '<br>')}</div>`;
+      } else if (p.specializations && p.specializations.length > 0) {
+        // Show specializations as approach tag pills
+        approachIntro.textContent = `${p.name.split(' ')[0]} specialises in the following areas:`;
+        const icons = ['🔍','🌿','🧬','📋','💬','🎯','🧩','🌱'];
+        approachGrid.innerHTML = `<div class="approach-grid">${p.specializations.map((s, i) => `
+          <div class="approach-item">
+            <div class="a-icon">${icons[i % icons.length]}</div>
+            <h4>${s}</h4>
+            <p>Evidence-based support focused on ${s.toLowerCase()} within the family system.</p>
+          </div>`).join('')}</div>`;
+      } else {
+        // Generic fallback
+        approachGrid.innerHTML = `<div class="approach-grid">
+          <div class="approach-item"><div class="a-icon">🔍</div><h4>Evidence-Based Practice</h4><p>Structured, research-backed therapeutic methods tailored to each family's dynamics.</p></div>
+          <div class="approach-item"><div class="a-icon">🌿</div><h4>Holistic Family View</h4><p>Addressing the root causes of family stress, not just the surface-level symptoms.</p></div>
+          <div class="approach-item"><div class="a-icon">🧬</div><h4>Family Systems Lens</h4><p>Understanding each member's role and how patterns pass through generations.</p></div>
+          <div class="approach-item"><div class="a-icon">📋</div><h4>Goal-Oriented Sessions</h4><p>Structured homework, journaling prompts, and practical exercises between sessions.</p></div>
+        </div>`;
+      }
+
       // RCI license
       const rciLic = p.rciLicense || p.rci_license;
       const rciEl = document.getElementById('rciLicense');
@@ -488,6 +496,17 @@
   }
 
   function showDemoProfile() {
+    // Fill approach grid with generic fallback since this is demo data
+    const approachGrid = document.getElementById('approachGrid');
+    const approachIntro = document.getElementById('approachIntro');
+    if (approachIntro) approachIntro.textContent = 'This KinMentor uses evidence-based methods tailored to each family\'s unique dynamics. Approaches include:';
+    if (approachGrid) approachGrid.innerHTML = `<div class="approach-grid">
+      <div class="approach-item"><div class="a-icon">🔍</div><h4>Cognitive Behavioral Therapy (CBT)</h4><p>Identifying and challenging core beliefs that drive conflict and anxiety in family relationships.</p></div>
+      <div class="approach-item"><div class="a-icon">🌿</div><h4>Validation Over Advice</h4><p>Listening deeply before offering solutions, so you feel genuinely heard in every session.</p></div>
+      <div class="approach-item"><div class="a-icon">🧬</div><h4>Family Systems Mapping</h4><p>Using genograms to map multi-generational patterns and break cycles — not just manage symptoms.</p></div>
+      <div class="approach-item"><div class="a-icon">📋</div><h4>Practical Homework</h4><p>Structured exercises — boundary scripts, journaling prompts, and "third space" activities — between sessions.</p></div>
+    </div>`;
+
     document.getElementById('mentorName').textContent = 'Dr. Ananya Mehta';
     document.getElementById('mentorRole').textContent = 'Clinical Psychologist · CBT Specialist · 9 Years Experience';
     document.getElementById('rciBadge').style.display = 'inline-flex';

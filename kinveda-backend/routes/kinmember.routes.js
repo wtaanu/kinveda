@@ -292,7 +292,7 @@ router.post('/session-request', requireAuth, requireKinMember,
     const result = db.prepare(`
       INSERT INTO booking_sessions
         (member_id, mentor_id, duration_mins, status, payment_status, notes_enc, created_at, updated_at)
-      VALUES (?, ?, ?, 'pending', 'pending', ?, unixepoch(), unixepoch())
+      VALUES (?, ?, ?, 'pending', 'unpaid', ?, unixepoch(), unixepoch())
     `).run(req.user.id, mentorId, durationMins, notesEnc);
 
     // Notify admin(s) by email
