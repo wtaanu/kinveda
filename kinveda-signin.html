@@ -199,10 +199,14 @@
         return;
       }
 
-      // Verify role matches selected tab
-      if (data.user.role !== selectedRole && data.user.role !== 'admin') {
-        showError(`This account is not a ${selectedRole === 'kinmember' ? 'KinMember' : 'KinMentor'}. Please select the correct role.`);
-        return;
+      // If the account role doesn't match the selected tab, auto-switch the tab
+      // rather than blocking — this prevents confusing "wrong tab" errors
+      if (data.user.role !== selectedRole) {
+        if (data.user.role === 'admin') {
+          const adminTab = document.getElementById('tab-admin');
+          if (adminTab) adminTab.style.display = '';
+        }
+        setRole(data.user.role);
       }
 
       // Store access token
