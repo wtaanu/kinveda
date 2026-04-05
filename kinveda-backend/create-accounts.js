@@ -5,25 +5,24 @@
  * Usage (in Hostinger Node.js terminal / SSH):
  *   node create-accounts.js
  *
- * This script is safe to re-run — it uses INSERT OR IGNORE so it won't duplicate accounts.
+ * This script is safe to re-run — it skips accounts that already exist.
  */
 
 require('dotenv').config();
-const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-const DB_PATH = process.env.DB_PATH || './data/kinveda.db';
-const ENC_KEY  = process.env.ENCRYPTION_KEY;
-const ENC_IV   = process.env.ENCRYPTION_IV;
+// Use the shared database module — this creates the data/ dir and schema if needed
+const { getDb, initializeSchema } = require('./config/database');
+
+const ENC_KEY = process.env.ENCRYPTION_KEY;
+const ENC_IV  = process.env.ENCRYPTION_IV;
 
 if (!ENC_KEY || !ENC_IV) {
   console.error('❌  ENCRYPTION_KEY / ENCRYPTION_IV not set. Check your .env file.');
   process.exit(1);
 }
 
-// ─── Encrypt helper (same algo as middleware/encrypt.js) ─────────────────────
 function encrypt(plaintext) {
   if (!plaintext) return null;
   const iv     = crypto.randomBytes(16);
@@ -34,46 +33,24 @@ function encrypt(plaintext) {
   return iv.toString('hex') + ':' + enc;
 }
 
-// ─── Accounts to create ───────────────────────────────────────────────────────
-// Edit these before running if you want different credentials.
 const ACCOUNTS = [
-  {
-    email:    'wtaanu@gmail.com',
-    password: 'Ak2109@kk',
-    name:     'Anuragini Pathak',
-    role:     'admin',
-    label:    'Admin'
-  },
-  {
-    email:    'test2@gmail.com',
-    password: 'Ak2109@kk',
-    name:     'Test Mentor',
-    role:     'kinmentor',
-    label:    'KinMentor test account'
-  },
-  {
-    email:    'test3m@gmail.com',
-    password: 'Ak2109@kk',
-    name:     'Test Member',
-    role:     'kinmember',
-    label:    'KinMember test account'
-  }
+  { email: 'wtaanu@gmail.com',           password: 'Ak2109@kk', name: 'Anuragini Pathak',  role: 'admin',     label: 'Admin' },
+  { email: 'test2@gmail.com',            password: 'Ak2109@kk', name: 'Test Mentor',        role: 'kinmentor', label: 'KinMentor test' },
+  { email: 'test3m@gmail.com',           password: 'Ak2109@kk', name: 'Test Member',        role: 'kinmember', label: 'KinMember test' }
 ];
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log(`\n🌿 KinVeda Account Setup`);
-  console.log(`   DB: ${DB_PATH}\n`);
+  console.log('\n🌿 KinVeda Account Setup');
+  console.log(`   DB: ${process.env.DB_PATH || './data/kinveda.db'}\n`);
 
-  const db = new DatabaseSync(DB_PATH);
+  // Init schema (creates tables + data/ dir if they don't exist)
+  initializeSchema();
 
-  // Make sure schema is initialised (run setup.js creates tables if missing)
-  // Tables should already exist from normal app startup — we just insert users.
+  const db = getDb();
 
   for (const acct of ACCOUNTS) {
     console.log(`→ Creating ${acct.label}: ${acct.email}`);
 
-    // Check if already exists
     const existing = db.prepare('SELECT id, role FROM users WHERE email = ?').get(acct.email);
     if (existing) {
       console.log(`  ⚠️  Already exists (id=${existing.id}, role=${existing.role}) — skipping.\n`);
@@ -89,19 +66,17 @@ async function main() {
     const userId = result.lastInsertRowid;
     console.log(`  ✅  User created (id=${userId})`);
 
-    // Create role-specific profile skeleton
     if (acct.role === 'kinmember') {
       db.prepare('INSERT OR IGNORE INTO kinmember_profiles (user_id) VALUES (?)').run(userId);
       console.log(`  ✅  KinMember profile created\n`);
     } else if (acct.role === 'kinmentor') {
       db.prepare('INSERT OR IGNORE INTO kinmentor_profiles (user_id, is_profile_public) VALUES (?, 1)').run(userId);
-      // Seed some basic profile data so the public profile isn't blank
       db.prepare(`
         UPDATE kinmentor_profiles SET
           qualification_enc = ?, bio_enc = ?,
           specializations = ?, languages = ?,
           experience_years = 3, fee_30min = 500, fee_60min = 900, fee_monthly = 6000,
-          is_rci_verified = 1, avg_rating = 4.5, total_reviews = 0
+          is_rci_verified = 1, avg_rating = 4.5
         WHERE user_id = ?
       `).run(
         encrypt('M.Sc. Counselling Psychology'),
@@ -112,20 +87,18 @@ async function main() {
       );
       console.log(`  ✅  KinMentor profile created\n`);
     } else {
-      // admin — no profile table needed
       console.log('');
     }
   }
 
   console.log('─────────────────────────────────────────');
-  console.log('✅  Done! Accounts summary:');
+  console.log('✅  Done! Accounts in DB:');
   const users = db.prepare('SELECT id, email, role, is_active FROM users ORDER BY id').all();
   users.forEach(u => console.log(`   id=${u.id}  ${u.role.padEnd(12)}  ${u.email}  active=${u.is_active}`));
   console.log('\n📋  Login credentials:');
   ACCOUNTS.forEach(a => console.log(`   ${a.role.padEnd(12)}  ${a.email}  /  ${a.password}`));
   console.log('\n🔐  Admin portal URL:');
-  console.log('   https://kinveda.autogreet.in/kinveda-signin.html?role=admin');
-  console.log('   (The admin tab only appears when ?role=admin is in the URL)\n');
+  console.log('   https://kinveda.autogreet.in/kinveda-signin.html?role=admin\n');
 }
 
 main().catch(e => { console.error('❌', e.message); process.exit(1); });
