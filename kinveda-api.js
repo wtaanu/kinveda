@@ -226,7 +226,7 @@ const KV = (() => {
       const orderRes = await post('/api/payment/order', { sessionId });
       if (!orderRes || !orderRes.ok) {
         const d = await orderRes?.json().catch(() => ({}));
-        alert(d.message || 'Could not initiate payment. Please try again.');
+        showToast(d.message || 'Could not initiate payment. Please try again.', 'error');
         return;
       }
       const order = await orderRes.json();
@@ -259,7 +259,7 @@ const KV = (() => {
       });
     } catch (err) {
       console.error('[KV] payForSession error:', err);
-      alert('Payment initiation failed. Please try again.');
+      showToast('Payment initiation failed. Please try again.', 'error');
     }
   }
 
@@ -269,7 +269,7 @@ const KV = (() => {
       const orderRes = await post('/api/payment/subscription', { mentorId });
       if (!orderRes || !orderRes.ok) {
         const d = await orderRes?.json().catch(() => ({}));
-        alert(d.message || 'Could not start subscription. Please try again.');
+        showToast(d.message || 'Could not start subscription. Please try again.', 'error');
         return;
       }
       const order = await orderRes.json();
@@ -302,7 +302,7 @@ const KV = (() => {
       });
     } catch (err) {
       console.error('[KV] subscribe error:', err);
-      alert('Subscription initiation failed.');
+      showToast('Subscription initiation failed. Please try again.', 'error');
     }
   }
 

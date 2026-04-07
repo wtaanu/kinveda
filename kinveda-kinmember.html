@@ -1152,7 +1152,14 @@ async function subscribeNow() {
 }
 
 async function cancelSub() {
-  if (!confirm('Are you sure you want to cancel your monthly subscription? Your current period will remain active.')) return;
+  // Show inline confirmation toast — user must click the action button again within 5s
+  if (!window._cancelSubConfirmed) {
+    window._cancelSubConfirmed = true;
+    KV.showToast('Tap Cancel Subscription once more to confirm. Your plan stays active until period ends.', 'warning');
+    setTimeout(() => { window._cancelSubConfirmed = false; }, 5000);
+    return;
+  }
+  window._cancelSubConfirmed = false;
   const res = await KV.post('/api/payment/subscription/cancel', {});
   if (!res) return;
   const data = await res.json();

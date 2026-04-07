@@ -202,9 +202,13 @@
   <div class="sb-user">
     <div class="sb-avatar">🔐</div>
     <div class="sb-user-info">
-      <h4 style="color:white">Admin User</h4>
-      <p>Super Admin · Logged in</p>
+      <h4 style="color:white" id="sbAdminName">Admin</h4>
+      <p id="sbAdminEmail">Super Admin</p>
     </div>
+    <button onclick="adminSignOut()" title="Sign out"
+      style="background:rgba(255,255,255,0.1);border:none;color:rgba(255,255,255,0.7);padding:6px 10px;border-radius:7px;cursor:pointer;font-size:16px;margin-left:6px;flex-shrink:0;"
+      onmouseover="this.style.background='rgba(220,38,38,0.4)';this.style.color='white'"
+      onmouseout="this.style.background='rgba(255,255,255,0.1)';this.style.color='rgba(255,255,255,0.7)'">⏻</button>
   </div>
 </div>
 
@@ -213,8 +217,8 @@
   <div class="topbar">
     <h1>Admin Command Centre</h1>
     <div class="topbar-right">
-      <div class="sos-alert-topbar">🆘 2 Active SOS Alerts</div>
-      <div class="notif-btn">🔔<div class="notif-dot"></div></div>
+      <div class="sos-alert-topbar" id="topbarSos" style="display:none;">🆘 <span id="topbarSosCount">0</span> Active SOS</div>
+      <div class="notif-btn">🔔<div class="notif-dot" id="notifDot" style="display:none;"></div></div>
     </div>
   </div>
 
@@ -594,11 +598,26 @@
 
       if (statsRes && statsRes.ok) {
         const { stats } = await statsRes.json();
-        setKpi('kpiMembers', stats.total_kinmembers ?? '—');
-        setKpi('kpiMentors', stats.total_kinmentors ?? '—');
-        setKpi('kpiSessions', stats.total_sessions ?? '—');
-        setKpi('kpiSos', stats.open_sos ?? '—', stats.open_sos > 0 ? 'alert' : '');
-        setKpi('kpiRevenue', stats.monthly_revenue ? `₹${(stats.monthly_revenue/100000).toFixed(1)}L` : '—');
+        setKpi('kpiMembers',  stats.total_kinmembers ?? '—');
+        setKpi('kpiMentors',  stats.total_kinmentors ?? '—');
+        setKpi('kpiSessions', stats.total_sessions    ?? '—');
+        setKpi('kpiSos',      stats.open_sos          ?? '—', stats.open_sos > 0 ? 'alert' : '');
+        setKpi('kpiRevenue',  stats.total_revenue != null ? `₹${(stats.total_revenue/100000).toFixed(1)}L` : '—');
+        // Clear loading text from change divs
+        ['kpiMembersChange','kpiMentorsChange','kpiSessionsChange','kpiRevenueChange','kpiSosChange'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el && el.textContent === 'Loading…') el.textContent = '';
+        });
+        if (stats.open_sos > 0) {
+          const el = document.getElementById('kpiSosChange');
+          if (el) { el.textContent = `${stats.open_sos} unresolved`; el.className = 'k-change alert'; }
+          const topSos = document.getElementById('topbarSos');
+          const topCnt = document.getElementById('topbarSosCount');
+          const dot    = document.getElementById('notifDot');
+          if (topSos) topSos.style.display = '';
+          if (topCnt) topCnt.textContent = stats.open_sos;
+          if (dot)    dot.style.display = '';
+        }
       }
 
       if (usersRes && usersRes.ok) {
@@ -731,50 +750,11 @@
     renderMembersTable(filtered);
   }
 
-  // ─── Match Modal ──────────────────────────────────────────────────────────
-  async function openMatchModal(memberId, memberName) {
-    const mentorId = prompt(`Assign a KinMentor to ${memberName}.\n\nEnter the KinMentor's User ID:`);
-    if (!mentorId) return;
-    try {
-      const res = await adminFetch('/match', {
-        method: 'POST',
-        body: JSON.stringify({ memberId, mentorId })
-      });
-      const data = await res?.json();
-      if (data?.success) {
-        KV.showToast(`KinMentor matched to ${memberName} successfully!`, 'success');
-        loadDashboard();
-      } else {
-        KV.showToast('Match failed: ' + (data?.message || 'Unknown error'), 'error');
-      }
-    } catch (err) {
-      KV.showToast('Error: ' + err.message, 'error');
-    }
-  }
-
-  // ─── Verify KinMentor ─────────────────────────────────────────────────────
-  async function verifyMentor(mentorId) {
-    if (!confirm('Mark this KinMentor as RCI-verified and payment-verified?')) return;
-    try {
-      const res = await adminFetch(`/mentor/${mentorId}/verify`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isRciVerified: true, isPaymentVerified: true })
-      });
-      const data = await res?.json();
-      if (data?.success) {
-        KV.showToast('KinMentor verified successfully!', 'success');
-        loadDashboard();
-      } else {
-        KV.showToast('Verification failed: ' + (data?.message || 'Unknown error'), 'error');
-      }
-    } catch (err) {
-      KV.showToast('Error: ' + err.message, 'error');
-    }
-  }
+  // ─── Match Modal — now handled by openMatchModal in Assign Mentor Modal section below ───
 
   // ─── Resolve SOS ─────────────────────────────────────────────────────────
   async function resolveSos(sosId) {
-    if (!confirm('Mark this SOS event as resolved?')) return;
+    if (!await kvConfirmAsync('Resolve this SOS event?', 'This will mark the event as resolved. Ensure follow-up is complete before proceeding.', 'Resolve')) return;
     try {
       const res = await adminFetch(`/sos/${sosId}/resolve`, { method: 'PATCH' });
       const data = await res?.json();
@@ -791,7 +771,7 @@
 
   // ─── Sign out ─────────────────────────────────────────────────────────────
   function adminSignOut() {
-    if (confirm('Sign out of admin panel?')) KV.signOut();
+    kvConfirm('Sign out of admin panel?', 'You will be returned to the sign-in page.', 'Sign Out', KV.signOut, 'danger');
   }
 
   // ─── Panel routing ────────────────────────────────────────────────────────
@@ -965,7 +945,7 @@
   }
 
   async function rejectSessionRequest(sessionId) {
-    if (!confirm('Decline this session request? The member will not be notified automatically.')) return;
+    if (!await kvConfirmAsync('Decline this session request?', 'The KinMember will not be notified automatically. Consider reaching out manually.', 'Decline', 'danger')) return;
     const res = await adminFetch(`/sessions/${sessionId}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ status: 'cancelled' })
@@ -1198,7 +1178,7 @@
     if (!title || !body) { KV.showToast('Title and body are required.', 'warning'); return; }
     const res = await adminFetch('/content', {
       method: 'POST',
-      body: JSON.stringify({ type, category, title, body, isPublished })
+      body: JSON.stringify({ type, category, title, content: body, isPublished })
     });
     if (!res) return;
     const data = await res.json();
@@ -1214,7 +1194,7 @@
   }
 
   async function deleteContent(id) {
-    if (!confirm('Delete this content? This cannot be undone.')) return;
+    if (!await kvConfirmAsync('Delete this content?', 'This action cannot be undone.', 'Delete', 'danger')) return;
     const res = await adminFetch(`/content/${id}`, { method: 'DELETE' });
     if (res?.ok) { KV.showToast('Content deleted.', 'info'); loadContent(); }
   }
@@ -1384,7 +1364,7 @@
 
   // ─── Verify KinMentor — 2 separate actions ────────────────────────────────
   async function verifyUser(mentorId) {
-    if (!confirm('Mark this KinMentor as identity/RCI verified?')) return;
+    if (!await kvConfirmAsync('Verify KinMentor identity?', 'This will mark the user as RCI/identity verified.', 'Verify User')) return;
     const res = await adminFetch(`/mentor/${mentorId}/verify`, {
       method: 'PATCH',
       body: JSON.stringify({ rciVerified: true })
@@ -1395,7 +1375,7 @@
   }
 
   async function verifyPayment(mentorId) {
-    if (!confirm('Mark this KinMentor payment as verified?')) return;
+    if (!await kvConfirmAsync('Verify payment details?', 'This will mark the KinMentor\'s payment information as verified.', 'Verify Payment')) return;
     const res = await adminFetch(`/mentor/${mentorId}/verify`, {
       method: 'PATCH',
       body: JSON.stringify({ paymentVerified: true })
@@ -1407,7 +1387,7 @@
 
   // Keep old verifyMentor for backward compat — now verifies both
   async function verifyMentor(mentorId) {
-    if (!confirm('Mark this KinMentor as fully verified (user + payment)?')) return;
+    if (!await kvConfirmAsync('Fully verify this KinMentor?', 'This will mark both user identity and payment as verified, and make their profile public.', 'Verify Both')) return;
     const res = await adminFetch(`/mentor/${mentorId}/verify`, {
       method: 'PATCH',
       body: JSON.stringify({ rciVerified: true, paymentVerified: true })
@@ -1449,7 +1429,8 @@
     const data = await res.json().catch(() => ({}));
     const s = data.stats || {};
     el.innerHTML = `
-      <div class="rev-row"><span class="label">Total Sessions</span><span class="val">${s.total_sessions ?? '—'}</span></div>
+      <div class="rev-row"><span class="label">Total Revenue</span><span class="val" style="font-weight:700;">${s.total_revenue != null ? '₹' + (s.total_revenue/100000).toFixed(1) + 'L' : '—'}</span></div>
+      <div class="rev-row"><span class="label">This Month</span><span class="val">${s.monthly_revenue != null ? '₹' + (s.monthly_revenue/100000).toFixed(1) + 'L' : '—'}</span></div>
       <div class="rev-row"><span class="label">Completed Sessions</span><span class="val">${s.completed_sessions ?? '—'}</span></div>
       <div class="rev-row"><span class="label">Pending Requests</span><span class="val" style="color:#D97706;">${s.pending_sessions ?? '—'}</span></div>
       <div class="rev-row"><span class="label">Open SOS Events</span><span class="val" style="color:var(--sos);">${s.open_sos ?? '—'}</span></div>`;
@@ -1469,12 +1450,64 @@
       </div>`).join('');
   }
 
+  // ─── Reusable confirm modal (replaces window.confirm everywhere) ─────────
+  function kvConfirm(title, body, okLabel, onOk, variant = 'primary') {
+    document.getElementById('kvConfirmTitle').textContent = title;
+    document.getElementById('kvConfirmBody').textContent  = body;
+    const okBtn = document.getElementById('kvConfirmOk');
+    okBtn.textContent = okLabel || 'Confirm';
+    okBtn.style.background = variant === 'danger' ? '#DC2626' : '#2D7D6F';
+    okBtn.style.color = 'white';
+    const modal = document.getElementById('kvConfirmModal');
+    modal.style.display = 'flex';
+    // Remove old listeners
+    const newOk     = okBtn.cloneNode(true);
+    const newCancel = document.getElementById('kvConfirmCancel').cloneNode(true);
+    okBtn.replaceWith(newOk);
+    document.getElementById('kvConfirmCancel').replaceWith(newCancel);
+    newOk.style.background = variant === 'danger' ? '#DC2626' : '#2D7D6F';
+    newOk.style.color = 'white';
+    newOk.textContent = okLabel || 'Confirm';
+    newOk.onclick = () => { modal.style.display = 'none'; if (onOk) onOk(); };
+    newCancel.onclick = () => { modal.style.display = 'none'; };
+  }
+
+  function kvConfirmAsync(title, body, okLabel, variant = 'primary') {
+    return new Promise(resolve => {
+      kvConfirm(title, body, okLabel, () => resolve(true), variant);
+      document.getElementById('kvConfirmCancel').onclick = () => {
+        document.getElementById('kvConfirmModal').style.display = 'none';
+        resolve(false);
+      };
+    });
+  }
+
   // ─── Wire up member/mentor table IDs ──────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
+    // Populate admin name in sidebar from localStorage
+    const user = KV.getUser ? KV.getUser() : null;
+    if (user) {
+      const nameEl  = document.getElementById('sbAdminName');
+      const emailEl = document.getElementById('sbAdminEmail');
+      if (nameEl)  nameEl.textContent  = user.name  || 'Admin';
+      if (emailEl) emailEl.textContent = user.email || 'Super Admin';
+    }
     initAdminPage();
     loadBookSessionUsers();
   });
 </script>
+
+<!-- ── REUSABLE CONFIRM MODAL ─────────────────────────────────────────────── -->
+<div id="kvConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:14px;padding:28px;width:400px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+    <h3 id="kvConfirmTitle" style="font-size:16px;margin-bottom:8px;"></h3>
+    <p id="kvConfirmBody" style="font-size:13px;color:#78716C;margin-bottom:24px;line-height:1.5;"></p>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button id="kvConfirmCancel" style="padding:9px 20px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;background:white;">Cancel</button>
+      <button id="kvConfirmOk" style="padding:9px 22px;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;"></button>
+    </div>
+  </div>
+</div>
 
 <!-- ── ASSIGN MENTOR MODAL ──────────────────────────────────────────────── -->
 <div id="assignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">

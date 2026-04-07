@@ -34,15 +34,18 @@ router.get('/stats', (req, res) => {
 
   const stats = db.prepare(`
     SELECT
-      (SELECT COUNT(*) FROM users WHERE role = 'kinmember') AS total_members,
-      (SELECT COUNT(*) FROM users WHERE role = 'kinmentor') AS total_mentors,
-      (SELECT COUNT(*) FROM users WHERE created_at > ?) AS new_users_month,
+      (SELECT COUNT(*) FROM users WHERE role = 'kinmember')  AS total_kinmembers,
+      (SELECT COUNT(*) FROM users WHERE role = 'kinmentor')  AS total_kinmentors,
+      (SELECT COUNT(*) FROM users WHERE created_at > ?)      AS new_users_month,
+      (SELECT COUNT(*) FROM booking_sessions)                AS total_sessions,
+      (SELECT COUNT(*) FROM booking_sessions WHERE status = 'completed') AS completed_sessions,
+      (SELECT COUNT(*) FROM booking_sessions WHERE status = 'pending')   AS pending_sessions,
       (SELECT COUNT(*) FROM booking_sessions WHERE status = 'completed' AND scheduled_at > ?) AS sessions_month,
-      (SELECT COALESCE(SUM(amount),0) FROM booking_sessions WHERE status = 'completed' AND scheduled_at > ?) AS revenue_month,
-      (SELECT COUNT(*) FROM sos_events WHERE status = 'active') AS sos_active,
-      (SELECT COUNT(*) FROM contact_enquiries WHERE created_at > ?) AS enquiries_month,
+      (SELECT COALESCE(SUM(amount),0) FROM booking_sessions WHERE status = 'completed') AS total_revenue,
+      (SELECT COALESCE(SUM(amount),0) FROM booking_sessions WHERE status = 'completed' AND scheduled_at > ?) AS monthly_revenue,
+      (SELECT COUNT(*) FROM sos_events WHERE status = 'active') AS open_sos,
       (SELECT COUNT(*) FROM kinmentor_profiles WHERE is_rci_verified = 0 AND is_profile_public = 0) AS pending_mentor_verifications
-  `).get(monthStart, monthStart, monthStart, monthStart);
+  `).get(monthStart, monthStart, monthStart);
 
   return res.json({ success: true, stats });
 });
