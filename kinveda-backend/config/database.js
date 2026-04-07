@@ -8,7 +8,9 @@ const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 const fs = require('fs');
 
-const DB_PATH = process.env.DB_PATH || './data/kinveda.db';
+// Use __dirname-relative default so the path is always consistent regardless
+// of what directory the process was started from (fixes Hostinger CWD mismatch).
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, '../data/kinveda.db');
 
 let db;
 

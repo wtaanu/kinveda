@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const { getDb } = require('../config/database');
 const { requireAuth, requireKinMember } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../middleware/encrypt');
+const { sendPaymentConfirmationEmail, sendSessionConfirmation } = require('../config/mailer');
 
 // ─── Razorpay instance ────────────────────────────────────────────────────────
 function getRazorpay() {
@@ -136,6 +137,35 @@ router.post('/verify', requireAuth, requireKinMember, (req, res) => {
         VALUES (?, ?, ?)
       `).run(sessionId, roomName, now);
     }
+
+    // Send payment confirmation email to KinMember
+    try {
+      const member = db.prepare('SELECT email, name_enc FROM users WHERE id = ?').get(req.user.id);
+      const sessionRow = db.prepare('SELECT amount, scheduled_at FROM booking_sessions WHERE id = ?').get(sessionId);
+      if (member && sessionRow) {
+        const mentorRow = db.prepare(`
+          SELECT u.name_enc FROM users u
+          JOIN booking_sessions bs ON bs.mentor_id = u.id WHERE bs.id = ?
+        `).get(sessionId);
+        sendPaymentConfirmationEmail(
+          member.email,
+          decrypt(member.name_enc),
+          `Session with ${mentorRow ? decrypt(mentorRow.name_enc) : 'KinMentor'}`,
+          Math.round(sessionRow.amount || 0),
+          razorpay_payment_id
+        ).catch(console.error);
+        // Also send the full session confirmation email
+        if (mentorRow) {
+          sendSessionConfirmation(
+            member.email,
+            decrypt(member.name_enc),
+            decrypt(mentorRow.name_enc),
+            sessionRow.scheduled_at,
+            Math.round(sessionRow.amount || 0)
+          ).catch(console.error);
+        }
+      }
+    } catch (e) { console.error('[mail] payment confirm:', e.message); }
 
     res.json({ success: true, message: 'Payment verified. Session confirmed.' });
   } catch (err) {

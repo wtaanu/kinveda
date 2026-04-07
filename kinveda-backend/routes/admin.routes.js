@@ -13,8 +13,9 @@ const { encrypt, decrypt, encryptJSON, decryptJSON } = require('../middleware/en
 const {
   sendSessionScheduledEmail, sendSessionConfirmation,
   sendMentorPayoutInvoice, sendPaymentConfirmationEmail,
-  sendSessionApprovedEmail
+  sendSessionApprovedEmail, sendSessionRequestedEmail
 } = require('../config/mailer');
+const ADMIN_EMAILS = (process.env.ADMIN_EMAIL_IDS || process.env.ADMIN_EMAIL || '').split(',').map(e => e.trim()).filter(Boolean);
 
 // All admin routes require auth + admin role
 router.use(requireAuth, requireAdmin);
@@ -54,8 +55,11 @@ router.get('/users', (req, res) => {
   const whereClause = role ? `WHERE u.role = '${role}'` : '';
 
   const users = db.prepare(`
-    SELECT u.id, u.email, u.role, u.name_enc, u.city_enc, u.is_verified, u.is_active, u.created_at, u.last_login
-    FROM users u ${whereClause}
+    SELECT u.id, u.email, u.role, u.name_enc, u.city_enc, u.phone_enc, u.is_verified, u.is_active, u.created_at, u.last_login,
+           kmp.is_rci_verified, kmp.is_payment_verified, kmp.avg_rating, kmp.total_sessions AS session_count, kmp.total_earned
+    FROM users u
+    LEFT JOIN kinmentor_profiles kmp ON kmp.user_id = u.id AND u.role = 'kinmentor'
+    ${whereClause}
     ORDER BY u.created_at DESC LIMIT ? OFFSET ?
   `).all(limit, offset);
 
@@ -67,10 +71,16 @@ router.get('/users', (req, res) => {
       role: u.role,
       name: decrypt(u.name_enc),
       city: decrypt(u.city_enc),
+      phone: decrypt(u.phone_enc),
       isVerified: !!u.is_verified,
       isActive: !!u.is_active,
       createdAt: u.created_at,
-      lastLogin: u.last_login
+      lastLogin: u.last_login,
+      is_rci_verified: !!u.is_rci_verified,
+      is_payment_verified: !!u.is_payment_verified,
+      avg_rating: u.avg_rating,
+      session_count: u.session_count ?? 0,
+      total_earned: u.total_earned ?? 0
     }))
   });
 });
@@ -120,7 +130,15 @@ router.post('/match', [body('memberId').isInt(), body('mentorId').isInt()], (req
 
   auditLog(db, req.user.id, 'MATCH_MEMBER_MENTOR', 'user', memberId, { mentorId }, req.ip);
 
-  // TODO: trigger calendar invite email (extend mailer for real deployment)
+  // Send notification emails to member, mentor, and admin
+  const member = db.prepare('SELECT email, name_enc FROM users WHERE id = ?').get(memberId);
+  const mentor = db.prepare('SELECT email, name_enc FROM users WHERE id = ?').get(mentorId);
+  const memberName = decrypt(member?.name_enc) || 'KinMember';
+  const mentorName = decrypt(mentor?.name_enc) || 'KinMentor';
+  if (member?.email) sendSessionApprovedEmail(member.email, memberName, mentorName, null, null, 'member').catch(console.error);
+  if (mentor?.email) sendSessionApprovedEmail(mentor.email, mentorName, memberName, null, null, 'mentor').catch(console.error);
+  ADMIN_EMAILS.forEach(e => sendSessionRequestedEmail(e, memberName, mentorName, null, `Admin matched ${memberName} → ${mentorName}`).catch(console.error));
+
   return res.json({ success: true, message: `KinMember #${memberId} matched to KinMentor #${mentorId}.` });
 });
 

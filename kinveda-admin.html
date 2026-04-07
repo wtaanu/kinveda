@@ -227,193 +227,61 @@
     <div class="kpi-row">
       <div class="kpi-card">
         <div class="k-icon">👥</div>
-        <div class="k-val">342</div>
-        <div class="k-label">Total Users</div>
-        <div class="k-change up">↑ 28 this month</div>
+        <div class="k-val" id="kpiMembers">—</div>
+        <div class="k-label">KinMembers</div>
+        <div class="k-change" id="kpiMembersChange">Loading…</div>
       </div>
       <div class="kpi-card">
         <div class="k-icon">🧑‍⚕️</div>
-        <div class="k-val">24</div>
-        <div class="k-label">Active Psychologists</div>
-        <div class="k-change up">↑ 3 new</div>
+        <div class="k-val" id="kpiMentors">—</div>
+        <div class="k-label">KinMentors</div>
+        <div class="k-change" id="kpiMentorsChange">Loading…</div>
       </div>
       <div class="kpi-card">
         <div class="k-icon">🎥</div>
-        <div class="k-val">186</div>
-        <div class="k-label">Sessions This Month</div>
-        <div class="k-change up">↑ 22% growth</div>
+        <div class="k-val" id="kpiSessions">—</div>
+        <div class="k-label">Total Sessions</div>
+        <div class="k-change" id="kpiSessionsChange">Loading…</div>
       </div>
       <div class="kpi-card">
         <div class="k-icon">💰</div>
-        <div class="k-val">₹4.2L</div>
-        <div class="k-label">Monthly Revenue</div>
-        <div class="k-change up">↑ 18% MoM</div>
+        <div class="k-val" id="kpiRevenue">—</div>
+        <div class="k-label">Total Revenue</div>
+        <div class="k-change" id="kpiRevenueChange">Loading…</div>
       </div>
       <div class="kpi-card">
         <div class="k-icon">🆘</div>
-        <div class="k-val">12</div>
-        <div class="k-label">SOS Triggers This Month</div>
-        <div class="k-change alert">2 unresolved</div>
+        <div class="k-val" id="kpiSos">—</div>
+        <div class="k-label">Open SOS Events</div>
+        <div class="k-change" id="kpiSosChange">Loading…</div>
       </div>
     </div>
 
     <div class="grid2">
-      <!-- PATIENT REQUESTS -->
+      <!-- PATIENT REQUESTS — dynamic -->
       <div class="card">
-        <div class="card-header"><h3>📥 New Patient Requests</h3><button class="hbtn">View all</button></div>
-
-        <div class="request-item">
-          <div class="req-top">
-            <div class="req-avatar">😐</div>
-            <div>
-              <div class="req-name">Arjun Singh · M · 19 · Pune</div>
-              <div class="req-sub">Submitted Mar 28 · Only-child nuclear family</div>
-            </div>
-            <div style="margin-left:auto;">
-              <span class="rtag sos">🆘 SOS Flag</span>
-            </div>
-          </div>
-          <div class="req-tags">
-            <span class="rtag only">Only Child</span>
-            <span class="rtag nuclear">Nuclear</span>
-            <span class="rtag sos">Self-Harm Risk</span>
-          </div>
-          <div class="req-actions">
-            <button class="btn-approve">✅ Match & Send Invite</button>
-            <button class="btn-view">👁 View Assessment</button>
-          </div>
-        </div>
-
-        <div class="request-item">
-          <div class="req-top">
-            <div class="req-avatar">😊</div>
-            <div>
-              <div class="req-name">Neha Verma · F · 33 · Chennai</div>
-              <div class="req-sub">Submitted Mar 27 · Nuclear family</div>
-            </div>
-          </div>
-          <div class="req-tags">
-            <span class="rtag nuclear">Nuclear</span>
-            <span class="rtag substance">Substance (family)</span>
-          </div>
-          <div class="req-actions">
-            <button class="btn-approve">✅ Match & Send Invite</button>
-            <button class="btn-view">👁 View Assessment</button>
-          </div>
-        </div>
-
-        <div class="request-item">
-          <div class="req-top">
-            <div class="req-avatar">🙂</div>
-            <div>
-              <div class="req-name">Karan Malhotra · M · 26 · Hyderabad</div>
-              <div class="req-sub">Submitted Mar 26 · Generation gap</div>
-            </div>
-          </div>
-          <div class="req-tags">
-            <span class="rtag nuclear">Nuclear</span>
-            <span class="rtag only">Only Child</span>
-          </div>
-          <div class="req-actions">
-            <button class="btn-approve">✅ Match & Send Invite</button>
-            <button class="btn-view">👁 View Assessment</button>
-          </div>
-        </div>
+        <div class="card-header"><h3>📥 Unmatched KinMembers</h3><button class="hbtn" onclick="showAdminPanel('members',null)">View all →</button></div>
+        <div id="dashPendingRequests"><div style="text-align:center;padding:30px;color:#78716C;font-size:13px;">Loading…</div></div>
       </div>
 
-      <!-- SOS TRACKER -->
+      <!-- SOS TRACKER — dynamic -->
       <div class="card">
-        <div class="card-header" style=""><h3>🆘 SOS Alert Tracker</h3><button class="hbtn" style="color:var(--sos)">View all 12</button></div>
-        <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-radius:10px;padding:10px 14px;font-size:12px;color:#7F1D1D;margin-bottom:14px;">
-          ⚠️ 2 active SOS events require follow-up within 24 hours.
-        </div>
-        <div class="sos-event">
-          <div class="sos-dot"></div>
-          <div class="sos-event-info">
-            <h4>Self-Harm Risk Flagged — Arjun Singh</h4>
-            <p>Assessment Q4 triggered. Assigned to Dr. Mehta for priority review. Patient notified of helpline: 1800-599-0019.</p>
-          </div>
-          <div class="sos-time">2h ago</div>
-        </div>
-        <div class="sos-event">
-          <div class="sos-dot"></div>
-          <div class="sos-event-info">
-            <h4>Physical Safety Flag — Anonymous Patient</h4>
-            <p>Quick Exit button clicked 3 times in 10 minutes. NCW helpline displayed. Follow-up required.</p>
-          </div>
-          <div class="sos-time">6h ago</div>
-        </div>
-        <div class="sos-event" style="background:white;border-color:var(--border);">
-          <div class="sos-dot" style="background:var(--green)"></div>
-          <div class="sos-event-info">
-            <h4 style="color:var(--green)">SOS Resolved — Priya Mehta</h4>
-            <p>Crisis contact made. Patient referred to psychiatrist. Closed Mar 22.</p>
-          </div>
-          <div class="sos-time">Mar 22</div>
-        </div>
-        <div class="sos-event" style="background:white;border-color:var(--border);">
-          <div class="sos-dot" style="background:var(--green)"></div>
-          <div class="sos-event-info">
-            <h4 style="color:var(--green)">Quick Exit Used — Session Drop</h4>
-            <p>User redirected to weather.com. Reassurance email sent. Closed Mar 19.</p>
-          </div>
-          <div class="sos-time">Mar 19</div>
-        </div>
+        <div class="card-header"><h3>🆘 SOS Alert Tracker</h3><button class="hbtn" style="color:var(--sos)" onclick="showAdminPanel('sos',null)">View all →</button></div>
+        <div id="sosContainer"><div style="text-align:center;padding:30px;color:#78716C;font-size:13px;">Loading…</div></div>
       </div>
     </div>
 
     <div class="grid3">
-      <!-- REVENUE BREAKDOWN -->
+      <!-- REVENUE BREAKDOWN — dynamic -->
       <div class="card">
-        <div class="card-header"><h3>💰 Revenue This Month</h3></div>
-        <div class="chart-bars">
-          <div class="bar" style="height:40%;background:linear-gradient(#D97706,#F59E0B)"></div>
-          <div class="bar" style="height:55%"></div>
-          <div class="bar" style="height:45%"></div>
-          <div class="bar" style="height:70%"></div>
-          <div class="bar" style="height:60%"></div>
-          <div class="bar" style="height:80%"></div>
-          <div class="bar" style="height:100%;background:linear-gradient(#B45309,#D97706)"></div>
-        </div>
-        <div class="chart-labels">
-          <span>Sep</span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span>
-        </div>
-        <div style="margin-top:16px;">
-          <div class="rev-row"><span class="label">Session Revenue</span><span class="val">₹2,84,000</span></div>
-          <div class="rev-row"><span class="label">Package Revenue</span><span class="val">₹1,28,000</span></div>
-          <div class="rev-row"><span class="label">Pending Payouts</span><span class="val" style="color:#92400E;">₹68,400</span></div>
-          <div class="rev-row"><span class="label">Drop-off Rate</span><span class="val" style="color:var(--sos);">8.2%</span></div>
-        </div>
+        <div class="card-header"><h3>💰 Revenue Summary</h3></div>
+        <div id="dashRevenueSummary"><div style="text-align:center;padding:30px;color:#78716C;font-size:13px;">Loading…</div></div>
       </div>
 
-      <!-- USER DEMOGRAPHICS -->
+      <!-- RECENT SESSIONS — dynamic -->
       <div class="card">
-        <div class="card-header"><h3>👥 User Demographics</h3></div>
-        <div class="demo-item">
-          <div class="demo-label">Nuclear Family</div>
-          <div class="demo-bar"><div class="demo-fill" style="width:58%;background:#2D7D6F;">58%</div></div>
-          <div class="demo-pct">58%</div>
-        </div>
-        <div class="demo-item">
-          <div class="demo-label">Only Child</div>
-          <div class="demo-bar"><div class="demo-fill" style="width:34%;background:#5A4F8A;">34%</div></div>
-          <div class="demo-pct">34%</div>
-        </div>
-        <div class="demo-item">
-          <div class="demo-label">Substance Use</div>
-          <div class="demo-bar"><div class="demo-fill" style="width:22%;background:#D97706;">22%</div></div>
-          <div class="demo-pct">22%</div>
-        </div>
-        <div class="demo-item">
-          <div class="demo-label">Generation Gap</div>
-          <div class="demo-bar"><div class="demo-fill" style="width:41%;background:#0891B2;">41%</div></div>
-          <div class="demo-pct">41%</div>
-        </div>
-        <div class="demo-item">
-          <div class="demo-label">Domestic Safety</div>
-          <div class="demo-bar"><div class="demo-fill" style="width:12%;background:#DC2626;">12%</div></div>
-          <div class="demo-pct">12%</div>
-        </div>
+        <div class="card-header"><h3>📅 Recent Sessions</h3><button class="hbtn" onclick="showAdminPanel('sessions',null)">View all →</button></div>
+        <div id="dashRecentSessions"><div style="text-align:center;padding:30px;color:#78716C;font-size:13px;">Loading…</div></div>
       </div>
 
       <!-- PROVIDER PERFORMANCE -->
@@ -490,9 +358,27 @@
       <div class="card">
         <div class="card-header"><h3>📅 Book a Session</h3></div>
         <div class="admin-form-grid">
-          <div class="admin-form-group"><label>KinMember ID</label><input id="sess-memberId" type="number" placeholder="User ID"></div>
-          <div class="admin-form-group"><label>KinMentor ID</label><input id="sess-mentorId" type="number" placeholder="User ID"></div>
-          <div class="admin-form-group"><label>Date & Time</label><input id="sess-dt" type="datetime-local"></div>
+          <!-- KinMember searchable dropdown -->
+          <div class="admin-form-group">
+            <label>KinMember</label>
+            <input id="sess-memberSearch" type="text" placeholder="Type name or email to search…" oninput="filterBookDropdown('member')" autocomplete="off"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:4px;">
+            <select id="sess-memberId" size="4" style="width:100%;border:1.5px solid var(--border);border-radius:8px;font-size:13px;padding:4px;" onchange="showBookUserInfo('member')">
+              <option value="">— select KinMember —</option>
+            </select>
+            <div id="sess-memberInfo" style="font-size:12px;color:#57534E;margin-top:5px;padding:6px 10px;background:#F5F5F4;border-radius:7px;display:none;"></div>
+          </div>
+          <!-- KinMentor searchable dropdown -->
+          <div class="admin-form-group">
+            <label>KinMentor</label>
+            <input id="sess-mentorSearch" type="text" placeholder="Type name or email to search…" oninput="filterBookDropdown('mentor')" autocomplete="off"
+              style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:4px;">
+            <select id="sess-mentorId" size="4" style="width:100%;border:1.5px solid var(--border);border-radius:8px;font-size:13px;padding:4px;" onchange="showBookUserInfo('mentor')">
+              <option value="">— select KinMentor —</option>
+            </select>
+            <div id="sess-mentorInfo" style="font-size:12px;color:#57534E;margin-top:5px;padding:6px 10px;background:#F5F5F4;border-radius:7px;display:none;"></div>
+          </div>
+          <div class="admin-form-group"><label>Date & Time (IST)</label><input id="sess-dt" type="datetime-local"></div>
           <div class="admin-form-group"><label>Duration (mins)</label><input id="sess-dur" type="number" value="50" min="15"></div>
           <div class="admin-form-group full" style="display:flex;align-items:center;gap:10px;margin-top:4px;">
             <input type="checkbox" id="sess-waived" style="width:16px;height:16px;">
@@ -513,7 +399,7 @@
     <div class="card">
       <div class="card-header"><h3>🧑‍⚕️ KinMentor Management</h3></div>
       <table class="data-table" id="mentorTableFull">
-        <thead><tr><th>Name</th><th>Sessions</th><th>Rating</th><th>Total Earned</th><th>Status</th><th>Action</th></tr></thead>
+        <thead><tr><th>Name</th><th>Sessions</th><th>Rating</th><th>Total Earned</th><th>Status</th><th>Verification</th></tr></thead>
         <tbody id="mentorTableBody"><tr><td colspan="6" style="text-align:center;padding:20px;color:#78716C;">Loading...</td></tr></tbody>
       </table>
     </div>
@@ -734,6 +620,11 @@
         if (badge) badge.textContent = pendingData.requests?.length || 0;
       }
 
+      // Also load dynamic dashboard widgets
+      loadDashPendingRequests();
+      loadDashRevenue();
+      loadDashRecentSessions();
+
     } catch (err) {
       console.error('Admin dashboard load error:', err);
     }
@@ -792,13 +683,16 @@
         : m.is_rci_verified
           ? '<span class="status-pill s-pending">Pending Pay</span>'
           : '<span class="status-pill s-new">Unverified</span>';
+      const verifyBtns = [
+        !m.is_rci_verified ? `<button onclick="verifyUser('${m.id}')" style="margin-top:4px;font-size:11px;background:#EEF7F5;border:1px solid #2D7D6F;color:#1A5C52;padding:3px 8px;border-radius:6px;cursor:pointer;display:block;">✓ Verify User</button>` : '<span style="font-size:11px;color:#059669;">✓ User Verified</span>',
+        !m.is_payment_verified ? `<button onclick="verifyPayment('${m.id}')" style="margin-top:4px;font-size:11px;background:#FFF7ED;border:1px solid #D97706;color:#92400E;padding:3px 8px;border-radius:6px;cursor:pointer;display:block;">💳 Verify Payment</button>` : '<span style="font-size:11px;color:#059669;">✓ Payment Verified</span>'
+      ].join('');
       return `<tr>
         <td><strong>${m.name || '—'}</strong></td>
         <td>${m.session_count ?? 0}</td>
         <td>${m.avg_rating ? `⭐ ${parseFloat(m.avg_rating).toFixed(1)}` : '—'}</td>
-        <td>${statusPill}
-          ${!verified ? `<button onclick="verifyMentor('${m.id}')" style="margin-top:4px;font-size:11px;background:#FFF7ED;border:1px solid #D97706;color:#92400E;padding:3px 8px;border-radius:6px;cursor:pointer;">Verify</button>` : ''}
-        </td>
+        <td>${statusPill}</td>
+        <td style="min-width:130px;">${verifyBtns}</td>
       </tr>`;
     }).join('');
   }
@@ -1110,14 +1004,26 @@
     if (!mentors.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;">No KinMentors yet.</td></tr>'; return; }
     tbody.innerHTML = mentors.map(m => {
       const verified = m.is_rci_verified && m.is_payment_verified;
-      const status = verified ? '<span class="status-pill s-active">Active</span>' : '<span class="status-pill s-new">Unverified</span>';
+      const status = verified
+        ? '<span class="status-pill s-active">Active</span>'
+        : m.is_rci_verified
+          ? '<span class="status-pill s-pending">Pending Payment</span>'
+          : '<span class="status-pill s-new">Unverified</span>';
+      const verifyBtns = [
+        !m.is_rci_verified
+          ? `<button onclick="verifyUser('${m.id}')" style="font-size:11px;background:#EEF7F5;border:1px solid #2D7D6F;color:#1A5C52;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:700;margin-bottom:4px;display:block;">✓ Verify User</button>`
+          : '<div style="font-size:11px;color:#059669;margin-bottom:4px;">✓ User Verified</div>',
+        !m.is_payment_verified
+          ? `<button onclick="verifyPayment('${m.id}')" style="font-size:11px;background:#FFF7ED;border:1px solid #D97706;color:#92400E;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:700;display:block;">💳 Verify Payment</button>`
+          : '<div style="font-size:11px;color:#059669;">✓ Payment Verified</div>'
+      ].join('');
       return `<tr>
         <td><strong>${m.name || '—'}</strong><br><span style="font-size:11px;color:#78716C;">${m.email||''}</span></td>
         <td>${m.session_count??0}</td>
         <td>${m.avg_rating?`⭐ ${parseFloat(m.avg_rating).toFixed(1)}`:'—'}</td>
         <td style="font-weight:700;">${KV.fmtINR(m.total_earned||0)}</td>
         <td>${status}</td>
-        <td>${!verified?`<button onclick="verifyMentor('${m.id}')" style="font-size:11px;background:#FFF7ED;border:1px solid #D97706;color:#92400E;padding:4px 10px;border-radius:6px;cursor:pointer;font-weight:700;">Verify</button>`:'—'}</td>
+        <td>${verifyBtns}</td>
       </tr>`;
     }).join('');
   }
@@ -1379,10 +1285,228 @@
     }
   }
 
+  // ─── Assign Mentor Modal ──────────────────────────────────────────────────
+  let _assignMemberId = null, _allMentorsCache = [];
+
+  async function openMatchModal(memberId, memberName) {
+    _assignMemberId = memberId;
+    document.getElementById('assignModalMemberName').textContent = memberName;
+    document.getElementById('assignMentorSel').innerHTML = '<option value="">Loading mentors…</option>';
+    document.getElementById('assignDt').value = '';
+    document.getElementById('assignModal').style.display = 'flex';
+
+    const res = await adminFetch('/users?role=kinmentor&limit=100');
+    if (!res) return;
+    const { users } = await res.json().catch(() => ({}));
+    _allMentorsCache = (users || []).filter(u => u.role === 'kinmentor');
+    populateAssignMentorList('');
+  }
+
+  function populateAssignMentorList(q) {
+    const filtered = q
+      ? _allMentorsCache.filter(m => (m.name||'').toLowerCase().includes(q) || (m.email||'').toLowerCase().includes(q))
+      : _allMentorsCache;
+    document.getElementById('assignMentorSel').innerHTML =
+      '<option value="">— choose a KinMentor —</option>' +
+      filtered.map(m => `<option value="${m.id}">${escAdmin(m.name)} · ${m.email}</option>`).join('');
+  }
+
+  async function confirmAssignMentor() {
+    const mentorId = document.getElementById('assignMentorSel').value;
+    const dt = document.getElementById('assignDt').value;
+    if (!mentorId) { KV.showToast('Please select a KinMentor.', 'warning'); return; }
+    if (!dt) { KV.showToast('Please choose a session date & time.', 'warning'); return; }
+    const scheduledAt = Math.floor(new Date(dt).getTime() / 1000);
+    if (isNaN(scheduledAt) || scheduledAt < Math.floor(Date.now()/1000)) {
+      KV.showToast('Please choose a future date and time.', 'warning'); return;
+    }
+    // 1. Match member to mentor
+    const matchRes = await adminFetch('/match', {
+      method: 'POST',
+      body: JSON.stringify({ memberId: parseInt(_assignMemberId), mentorId: parseInt(mentorId) })
+    });
+    if (!matchRes) return;
+    const matchData = await matchRes.json();
+    if (!matchData.success) { KV.showToast(matchData.message || 'Match failed.', 'error'); return; }
+
+    // 2. Book a session with the assigned date/time
+    await adminFetch('/sessions/book', {
+      method: 'POST',
+      body: JSON.stringify({
+        memberId: parseInt(_assignMemberId), mentorId: parseInt(mentorId),
+        scheduledAt, durationMins: 50, paymentWaived: false
+      })
+    });
+
+    KV.showToast('✅ KinMentor assigned! Session booked. Emails sent to all parties.', 'success');
+    document.getElementById('assignModal').style.display = 'none';
+    loadDashboard();
+  }
+
+  // ─── Book Session — searchable dropdowns ─────────────────────────────────
+  let _bookUsers = { member: [], mentor: [] };
+
+  async function loadBookSessionUsers() {
+    const res = await adminFetch('/users?limit=200');
+    if (!res) return;
+    const { users } = await res.json().catch(() => ({}));
+    _bookUsers.member = (users || []).filter(u => u.role === 'kinmember');
+    _bookUsers.mentor = (users || []).filter(u => u.role === 'kinmentor');
+    populateBookSelect('member', '');
+    populateBookSelect('mentor', '');
+  }
+
+  function populateBookSelect(type, q) {
+    const list = _bookUsers[type];
+    const filtered = q
+      ? list.filter(u => (u.name||'').toLowerCase().includes(q) || (u.email||'').toLowerCase().includes(q))
+      : list;
+    const sel = document.getElementById(`sess-${type}Id`);
+    sel.innerHTML = `<option value="">— select ${type === 'member' ? 'KinMember' : 'KinMentor'} —</option>` +
+      filtered.map(u => `<option value="${u.id}" data-name="${escAdmin(u.name)}" data-email="${escAdmin(u.email)}" data-phone="${escAdmin(u.phone||'')}">${escAdmin(u.name)} · ${u.email}</option>`).join('');
+  }
+
+  function filterBookDropdown(type) {
+    const q = document.getElementById(`sess-${type}Search`).value.toLowerCase();
+    populateBookSelect(type, q);
+    document.getElementById(`sess-${type}Info`).style.display = 'none';
+  }
+
+  function showBookUserInfo(type) {
+    const sel = document.getElementById(`sess-${type}Id`);
+    const opt = sel.options[sel.selectedIndex];
+    const info = document.getElementById(`sess-${type}Info`);
+    if (!sel.value || !opt) { info.style.display = 'none'; return; }
+    const name = opt.dataset.name, email = opt.dataset.email, phone = opt.dataset.phone;
+    info.innerHTML = `<strong>${name}</strong> · ${email}${phone ? ` · 📞 ${phone}` : ''}`;
+    info.style.display = 'block';
+  }
+
+  // ─── Verify KinMentor — 2 separate actions ────────────────────────────────
+  async function verifyUser(mentorId) {
+    if (!confirm('Mark this KinMentor as identity/RCI verified?')) return;
+    const res = await adminFetch(`/mentor/${mentorId}/verify`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rciVerified: true })
+    });
+    const data = await res?.json();
+    if (data?.success) { KV.showToast('✅ User verified!', 'success'); loadMentorsPanel(); loadDashboard(); }
+    else KV.showToast(data?.message || 'Verification failed.', 'error');
+  }
+
+  async function verifyPayment(mentorId) {
+    if (!confirm('Mark this KinMentor payment as verified?')) return;
+    const res = await adminFetch(`/mentor/${mentorId}/verify`, {
+      method: 'PATCH',
+      body: JSON.stringify({ paymentVerified: true })
+    });
+    const data = await res?.json();
+    if (data?.success) { KV.showToast('✅ Payment verified!', 'success'); loadMentorsPanel(); loadDashboard(); }
+    else KV.showToast(data?.message || 'Verification failed.', 'error');
+  }
+
+  // Keep old verifyMentor for backward compat — now verifies both
+  async function verifyMentor(mentorId) {
+    if (!confirm('Mark this KinMentor as fully verified (user + payment)?')) return;
+    const res = await adminFetch(`/mentor/${mentorId}/verify`, {
+      method: 'PATCH',
+      body: JSON.stringify({ rciVerified: true, paymentVerified: true })
+    });
+    const data = await res?.json();
+    if (data?.success) { KV.showToast('✅ KinMentor fully verified!', 'success'); loadMentorsPanel(); loadDashboard(); }
+    else KV.showToast(data?.message || 'Verification failed.', 'error');
+  }
+
+  // ─── Dashboard — load pending requests and revenue ────────────────────────
+  async function loadDashPendingRequests() {
+    const res = await adminFetch('/requests/pending');
+    const el = document.getElementById('dashPendingRequests');
+    if (!res || !el) return;
+    const data = await res.json().catch(() => ({}));
+    const reqs = data.requests || [];
+    if (!reqs.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#78716C;font-size:13px;">✅ All KinMembers are matched.</div>'; return; }
+    el.innerHTML = reqs.slice(0, 4).map(r => `
+      <div style="padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div style="font-size:13px;font-weight:700;">${escAdmin(r.name)} <span style="font-weight:400;color:#78716C;">· ${r.city||'—'}</span></div>
+            <div style="font-size:11px;color:#78716C;margin-top:2px;">${r.email} · Joined ${KV.fmtDate(r.createdAt)}</div>
+            ${r.sosTriggered ? '<span style="font-size:10px;background:#FEE2E2;color:#DC2626;padding:2px 6px;border-radius:5px;font-weight:700;">🆘 SOS</span>' : ''}
+          </div>
+          <button onclick="openMatchModal('${r.id}','${(r.name||'').replace(/'/g,"\\'")}' )"
+            style="background:#EEF7F5;border:1px solid #2D7D6F;color:#2D7D6F;padding:5px 12px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;">
+            Assign →
+          </button>
+        </div>
+      </div>`).join('');
+    if (reqs.length > 4) el.innerHTML += `<div style="text-align:center;padding:10px;font-size:12px;color:#78716C;">${reqs.length - 4} more — <a href="#" onclick="showAdminPanel('members',null)">View all</a></div>`;
+  }
+
+  async function loadDashRevenue() {
+    const res = await adminFetch('/stats');
+    const el = document.getElementById('dashRevenueSummary');
+    if (!res || !el) return;
+    const data = await res.json().catch(() => ({}));
+    const s = data.stats || {};
+    el.innerHTML = `
+      <div class="rev-row"><span class="label">Total Sessions</span><span class="val">${s.total_sessions ?? '—'}</span></div>
+      <div class="rev-row"><span class="label">Completed Sessions</span><span class="val">${s.completed_sessions ?? '—'}</span></div>
+      <div class="rev-row"><span class="label">Pending Requests</span><span class="val" style="color:#D97706;">${s.pending_sessions ?? '—'}</span></div>
+      <div class="rev-row"><span class="label">Open SOS Events</span><span class="val" style="color:var(--sos);">${s.open_sos ?? '—'}</span></div>`;
+  }
+
+  async function loadDashRecentSessions() {
+    const res = await adminFetch('/sessions?limit=5');
+    const el = document.getElementById('dashRecentSessions');
+    if (!res || !el) return;
+    const data = await res.json().catch(() => ({}));
+    const sessions = data.sessions || [];
+    if (!sessions.length) { el.innerHTML = '<p style="font-size:13px;color:#78716C;padding:8px;">No sessions yet.</p>'; return; }
+    el.innerHTML = sessions.map(s => `
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;">
+        <div style="font-weight:700;font-size:13px;">${escAdmin(s.memberName)} → ${escAdmin(s.mentorName)}</div>
+        <div style="color:#78716C;">${KV.fmtDate(s.scheduledAt)} · ${s.durationMins||50}min · <span style="text-transform:capitalize;">${s.status}</span></div>
+      </div>`).join('');
+  }
+
   // ─── Wire up member/mentor table IDs ──────────────────────────────────────
   document.addEventListener('DOMContentLoaded', () => {
     initAdminPage();
+    loadBookSessionUsers();
   });
 </script>
+
+<!-- ── ASSIGN MENTOR MODAL ──────────────────────────────────────────────── -->
+<div id="assignModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:16px;padding:28px;width:460px;max-width:95vw;box-shadow:0 8px 40px rgba(0,0,0,0.18);">
+    <h3 style="margin-bottom:4px;font-size:17px;">🧑‍⚕️ Assign KinMentor</h3>
+    <p style="font-size:13px;color:#78716C;margin-bottom:20px;">Assigning to: <strong id="assignModalMemberName"></strong></p>
+
+    <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">Search KinMentor</label>
+    <input type="text" placeholder="Type name or email…" oninput="populateAssignMentorList(this.value.toLowerCase())"
+      style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:8px;">
+    <select id="assignMentorSel" size="5"
+      style="width:100%;border:1.5px solid var(--border);border-radius:8px;font-size:13px;padding:4px;margin-bottom:16px;">
+      <option value="">Loading…</option>
+    </select>
+
+    <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">📅 Session Date & Time (IST)</label>
+    <input id="assignDt" type="datetime-local"
+      style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;margin-bottom:20px;">
+
+    <div style="background:#EEF7F5;border-radius:9px;padding:10px 14px;font-size:12px;color:#2D7D6F;margin-bottom:18px;">
+      📧 On confirming, emails will be sent to the KinMember, KinMentor, and admin.
+    </div>
+
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="document.getElementById('assignModal').style.display='none'"
+        style="padding:10px 20px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;cursor:pointer;background:white;">Cancel</button>
+      <button onclick="confirmAssignMentor()"
+        style="padding:10px 22px;background:#2D7D6F;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">
+        ✅ Confirm &amp; Notify
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

@@ -1,0 +1,23 @@
+# Environment — NEVER commit
+.env
+*.env
+
+# Database — runtime data only
+kinveda-backend/data/
+data/
+
+# Dependencies
+node_modules/
+kinveda-backend/node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.fuse_hidden*
+
+# Deploy zips
+*.zip
+
+# Logs
+*.log
+npm-debug.log*
