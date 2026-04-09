@@ -197,7 +197,6 @@
     <div class="sb-section">Content & Moderation</div>
     <a href="#" class="sb-item" onclick="showAdminPanel('content',this)"><span class="icon">✍️</span> Content</a>
     <a href="#" class="sb-item" onclick="showAdminPanel('testimonials',this)"><span class="icon">⭐</span> Testimonials</a>
-    <a href="kinveda-landing.html" class="sb-item"><span class="icon">↩️</span> Back to Portal</a>
   </div>
   <div class="sb-user">
     <div class="sb-avatar">🔐</div>
@@ -953,26 +952,66 @@
     if (res) { KV.showToast('Request declined.', 'info'); loadSessionRequests(); }
   }
 
+  const SESSION_STATUS_COLORS = {
+    pending:   { bg:'#FEF3C7', color:'#92400E', label:'Pending' },
+    confirmed: { bg:'#DBEAFE', color:'#1E40AF', label:'Confirmed' },
+    completed: { bg:'#D1FAE5', color:'#065F46', label:'Completed' },
+    cancelled: { bg:'#FEE2E2', color:'#991B1B', label:'Cancelled' }
+  };
+
   async function loadSessionsPanel() {
-    const res = await adminFetch('/sessions?status=completed&limit=30');
+    const el = document.getElementById('completedSessions');
+    if (el) el.innerHTML = '<div style="text-align:center;padding:20px;color:#78716C;">Loading…</div>';
+
+    const res = await adminFetch('/sessions?limit=50');
     if (!res) return;
     const data = await res.json();
-    const el = document.getElementById('completedSessions');
     const sessions = data.sessions || [];
-    if (!sessions.length) { el.innerHTML = '<p style="font-size:13px;color:#78716C;padding:8px;">No completed sessions yet.</p>'; return; }
+    if (!sessions.length) { el.innerHTML = '<p style="font-size:13px;color:#78716C;padding:8px;">No sessions yet.</p>'; return; }
+
     el.innerHTML = sessions.map(s => {
-      const needsPayout = !s.payoutId && s.paymentStatus === 'paid';
-      return `<div style="padding:10px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;">
-          <div>
-            <div style="font-size:13px;font-weight:700;">${s.memberName} → ${s.mentorName}</div>
-            <div style="font-size:11px;color:#78716C;">${KV.fmtDate(s.scheduledAt)} · ${KV.fmtINR(s.feeAmount||0)}</div>
+      const sc = SESSION_STATUS_COLORS[s.status] || { bg:'#F5F5F4', color:'#57534E', label: s.status };
+      const statusPill = `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${sc.bg};color:${sc.color};">${sc.label}</span>`;
+      const needsPayout = s.status === 'completed' && !s.payoutId && s.paymentStatus === 'paid';
+      const canKill = s.status === 'pending' || s.status === 'confirmed';
+
+      const actions = [];
+      if (needsPayout) actions.push(`<button onclick="openPayoutModal(${s.id},${s.mentorId},'${escAdmin(s.memberName)} → ${escAdmin(s.mentorName)}',${s.feeAmount||0})" style="background:var(--primary);color:white;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">💳 Payout</button>`);
+      if (canKill) actions.push(`<button onclick="killSession(${s.id})" style="background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">🚫 Cancel</button>`);
+      if (s.status === 'completed' && s.payoutId) actions.push('<span style="font-size:11px;font-weight:700;color:#059669;">✓ Paid Out</span>');
+
+      return `<div style="padding:12px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px;background:white;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div style="min-width:0;">
+            <div style="font-size:13px;font-weight:700;margin-bottom:2px;">${escAdmin(s.memberName)} → ${escAdmin(s.mentorName)}</div>
+            <div style="font-size:11px;color:#78716C;">${s.scheduledAt ? KV.fmtDate(s.scheduledAt) : 'Not scheduled'} · ${s.durationMins||50} min · ${KV.fmtINR(s.feeAmount||0)}</div>
+            ${s.recordingUrl ? `<div style="margin-top:4px;font-size:11px;color:#5A4F8A;">🎬 <a href="${s.recordingUrl}" target="_blank">Recording</a></div>` : ''}
           </div>
-          ${needsPayout ? `<button onclick="openPayoutModal(${s.id},${s.mentorId},'${s.memberName} → ${s.mentorName}',${s.feeAmount||0})" style="background:var(--primary);color:white;border:none;padding:7px 13px;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">💳 Payout</button>` : '<span style="font-size:11px;font-weight:700;color:#059669;">✓ Paid Out</span>'}
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+            ${statusPill}
+            <div style="display:flex;gap:6px;">${actions.join('')}</div>
+          </div>
         </div>
-        ${s.recordingUrl ? `<div style="margin-top:6px;font-size:11px;color:#5A4F8A;">🎬 <a href="${s.recordingUrl}" target="_blank">Recording available</a></div>` : ''}
       </div>`;
     }).join('');
+  }
+
+  async function killSession(sessionId) {
+    if (!await kvConfirmAsync('Cancel this session?', 'This will cancel the session. The KinMember and KinMentor will not be automatically notified — contact them manually if needed.', 'Cancel Session', 'danger')) return;
+    const res = await adminFetch(`/sessions/${sessionId}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'cancelled' })
+    });
+    if (!res) return;
+    const data = await res.json();
+    if (data.success) {
+      KV.showToast('Session cancelled.', 'info');
+      loadSessionsPanel();
+      loadDashRecentSessions();
+      loadDashRevenue();
+    } else {
+      KV.showToast(data.message || 'Could not cancel session.', 'error');
+    }
   }
 
   async function loadMentorsPanel() {
@@ -1189,7 +1228,8 @@
       document.getElementById('ct-body').value = '';
       loadContent();
     } else {
-      KV.showToast(data.message || 'Failed.', 'error');
+      const errMsg = data.errors?.map(e => e.msg).join(', ') || data.message || 'Failed to publish content.';
+      KV.showToast(errMsg, 'error');
     }
   }
 
@@ -1260,6 +1300,13 @@
       document.getElementById('sess-memberId').value = '';
       document.getElementById('sess-mentorId').value = '';
       document.getElementById('sess-dt').value = '';
+      document.getElementById('sess-memberInfo').style.display = 'none';
+      document.getElementById('sess-mentorInfo').style.display = 'none';
+      // Refresh dashboard widgets
+      loadDashPendingRequests();
+      loadDashRevenue();
+      loadDashRecentSessions();
+      loadSessionsPanel();
     } else {
       KV.showToast(data.message || 'Booking failed.', 'error');
     }
