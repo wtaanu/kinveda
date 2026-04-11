@@ -180,6 +180,31 @@ app.get('/api/health', (req, res) => {
   res.json({ success: true, status: 'KinVeda API is running', ts: Date.now() });
 });
 
+// ─── Deploy Webhook ───────────────────────────────────────────────────────────
+// Called by GitHub Actions on push to main — runs git pull + npm install + restart
+app.post('/api/deploy', (req, res) => {
+  const secret = req.headers['x-deploy-secret'];
+  if (!secret || secret !== process.env.DEPLOY_SECRET) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  res.json({ message: 'Deploy triggered', ts: Date.now() });
+
+  const { execSync } = require('child_process');
+  const appDir = path.join(__dirname, '..');
+  setTimeout(() => {
+    try {
+      console.log('[deploy] pulling latest code...');
+      execSync(`cd "${appDir}" && git pull origin main`, { stdio: 'inherit', timeout: 60000 });
+      console.log('[deploy] installing dependencies...');
+      execSync(`cd "${appDir}/kinveda-backend" && npm install --omit=dev`, { stdio: 'inherit', timeout: 120000 });
+      console.log('[deploy] restarting app...');
+      process.exit(0); // Hostinger process manager will restart the app
+    } catch (err) {
+      console.error('[deploy] error:', err.message);
+    }
+  }, 500);
+});
+
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
   // For API routes, return JSON

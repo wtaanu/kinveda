@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.HOSTINGER_HOST }}
-          username: ${{ secrets.HOSTINGER_USER }}
-          key: ${{ secrets.HOSTINGER_SSH_KEY }}
-          port: ${{ secrets.HOSTINGER_PORT }}
-          script: /home/u719986497/deploy-kinveda.sh
+      - name: Trigger deploy webhook
+        run: |
+          curl -s -X POST https://kinveda.autogreet.in/api/deploy \
+            -H "x-deploy-secret: ${{ secrets.DEPLOY_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 15 \
+            --fail \
+            -w "\nHTTP Status: %{http_code}\n"
