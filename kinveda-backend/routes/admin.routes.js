@@ -98,7 +98,12 @@ router.get('/requests/pending', (req, res) => {
     FROM users u
     JOIN kinmember_profiles kp ON kp.user_id = u.id
     LEFT JOIN assessments a ON a.user_id = u.id
-    WHERE u.role = 'kinmember' AND kp.assigned_mentor_id IS NULL AND u.is_active = 1
+    WHERE u.role = 'kinmember' AND u.is_active = 1
+      AND kp.assigned_mentor_id IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM booking_sessions bs
+        WHERE bs.member_id = u.id AND bs.status IN ('pending','confirmed')
+      )
     ORDER BY a.sos_triggered DESC, u.created_at ASC
   `).all();
 
@@ -607,6 +612,10 @@ router.post('/sessions/book', [
     waivePayment ? 'waived' : 'unpaid', waivePayment ? 1 : 0, amount || 0, roomName);
 
   const sessionId = result.lastInsertRowid;
+
+  // Mark member as matched (so they leave the Unmatched queue)
+  db.prepare(`UPDATE kinmember_profiles SET assigned_mentor_id = ?, updated_at = unixepoch() WHERE user_id = ?`)
+    .run(mentorId, memberId);
 
   // Create video session entry
   db.prepare(`
