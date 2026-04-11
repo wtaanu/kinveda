@@ -1367,7 +1367,12 @@
 
     KV.showToast('✅ KinMentor assigned! Session booked. Emails sent to all parties.', 'success');
     document.getElementById('assignModal').style.display = 'none';
-    loadDashboard();
+    // Explicitly refresh every affected widget — don't rely on loadDashboard() ordering
+    loadDashPendingRequests();
+    loadDashRevenue();
+    loadDashRecentSessions();
+    loadSessionsPanel();
+    loadMembersPanel();
   }
 
   // ─── Book Session — searchable dropdowns ─────────────────────────────────
