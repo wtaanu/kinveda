@@ -59,9 +59,12 @@ router.get('/users', (req, res) => {
 
   const users = db.prepare(`
     SELECT u.id, u.email, u.role, u.name_enc, u.city_enc, u.phone_enc, u.is_verified, u.is_active, u.created_at, u.last_login,
-           kmp.is_rci_verified, kmp.is_payment_verified, kmp.avg_rating, kmp.total_sessions AS session_count, kmp.total_earned
+           kmp.is_rci_verified, kmp.is_payment_verified, kmp.avg_rating, kmp.total_sessions AS mentor_session_count, kmp.total_earned,
+           kmb.assigned_mentor_id, kmb.family_structure, kmb.child_status, kmb.primary_concerns_enc,
+           (SELECT COUNT(*) FROM booking_sessions bs WHERE bs.member_id = u.id AND u.role = 'kinmember') AS member_session_count
     FROM users u
     LEFT JOIN kinmentor_profiles kmp ON kmp.user_id = u.id AND u.role = 'kinmentor'
+    LEFT JOIN kinmember_profiles kmb ON kmb.user_id = u.id AND u.role = 'kinmember'
     ${whereClause}
     ORDER BY u.created_at DESC LIMIT ? OFFSET ?
   `).all(limit, offset);
@@ -79,11 +82,18 @@ router.get('/users', (req, res) => {
       isActive: !!u.is_active,
       createdAt: u.created_at,
       lastLogin: u.last_login,
+      // KinMentor fields
       is_rci_verified: !!u.is_rci_verified,
       is_payment_verified: !!u.is_payment_verified,
       avg_rating: u.avg_rating,
-      session_count: u.session_count ?? 0,
-      total_earned: u.total_earned ?? 0
+      total_earned: u.total_earned ?? 0,
+      // KinMember fields
+      assigned_mentor_id: u.assigned_mentor_id ?? null,
+      family_structure: u.family_structure,
+      child_status: u.child_status,
+      primary_concerns: decryptJSON(u.primary_concerns_enc) || [],
+      // Session count — correct field per role
+      session_count: u.role === 'kinmember' ? (u.member_session_count ?? 0) : (u.mentor_session_count ?? 0)
     }))
   });
 });
