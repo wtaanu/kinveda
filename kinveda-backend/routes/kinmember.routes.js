@@ -23,11 +23,25 @@ router.get('/profile', requireAuth, requireKinMember, (req, res) => {
 
   if (!profile) return res.status(404).json({ success: false, message: 'Profile not found.' });
 
-  // Get assigned mentor name
+  // Get assigned mentor — use assigned_mentor_id first, then fall back to most recent session mentor
+  let assignedMentorId = profile.assigned_mentor_id;
   let mentorName = null;
-  if (profile.assigned_mentor_id) {
-    const mentor = db.prepare('SELECT name_enc FROM users WHERE id = ?').get(profile.assigned_mentor_id);
+  if (assignedMentorId) {
+    const mentor = db.prepare('SELECT name_enc FROM users WHERE id = ?').get(assignedMentorId);
     if (mentor) mentorName = decrypt(mentor.name_enc);
+  } else {
+    // Fallback: find the mentor from the most recent non-cancelled session
+    const sessionMentor = db.prepare(`
+      SELECT bs.mentor_id, u.name_enc
+      FROM booking_sessions bs
+      JOIN users u ON u.id = bs.mentor_id
+      WHERE bs.member_id = ? AND bs.status != 'cancelled'
+      ORDER BY bs.created_at DESC LIMIT 1
+    `).get(req.user.id);
+    if (sessionMentor) {
+      assignedMentorId = sessionMentor.mentor_id;
+      mentorName = decrypt(sessionMentor.name_enc);
+    }
   }
 
   return res.json({
@@ -43,7 +57,7 @@ router.get('/profile', requireAuth, requireKinMember, (req, res) => {
       primaryConcerns: decryptJSON(profile.primary_concerns_enc) || [],
       household: decrypt(profile.household_enc),
       wellnessScore: profile.wellness_score,
-      assignedMentorId: profile.assigned_mentor_id,
+      assignedMentorId,
       assignedMentorName: mentorName,
       assessmentCompleted: !!profile.assessment_completed,
       packageActive: !!profile.package_active,
@@ -193,10 +207,14 @@ router.post('/messages/:mentorId', requireAuth, requireKinMember,
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const db = getDb();
-    // Verify mentor exists and is assigned
+    // Verify mentor is linked to member: assigned OR has a shared session
+    const mentorId = parseInt(req.params.mentorId);
     const profile = db.prepare('SELECT assigned_mentor_id FROM kinmember_profiles WHERE user_id = ?').get(req.user.id);
-    if (!profile || String(profile.assigned_mentor_id) !== String(req.params.mentorId)) {
-      return res.status(403).json({ success: false, message: 'You can only message your assigned KinMentor.' });
+    const isAssigned = profile && String(profile.assigned_mentor_id) === String(mentorId);
+    const hasSession = db.prepare('SELECT id FROM booking_sessions WHERE member_id = ? AND mentor_id = ? AND status != ? LIMIT 1')
+      .get(req.user.id, mentorId, 'cancelled');
+    if (!isAssigned && !hasSession) {
+      return res.status(403).json({ success: false, message: 'You can only message your KinMentor.' });
     }
 
     db.prepare('INSERT INTO chat_messages (sender_id, receiver_id, message_enc) VALUES (?, ?, ?)')

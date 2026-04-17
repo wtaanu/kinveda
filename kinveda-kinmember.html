@@ -446,14 +446,22 @@ body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(
 
     <!-- ── CHAT ──────────────────────────────────────────────────── -->
     <div class="panel" id="panel-chat">
-      <div class="card">
-        <div class="card-h"><h3>💬 Message My KinMentor</h3><span id="chatMentorName" style="font-size:12px;color:var(--muted)"></span></div>
-        <div class="chat-window">
-          <div class="chat-msgs" id="chatMsgs"><div class="loading-state">Loading messages...</div></div>
-          <div class="chat-input-row">
-            <input id="chatInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter')sendPrivateMsg()">
-            <button class="chat-send" onclick="sendPrivateMsg()">Send →</button>
+      <div class="card" style="display:flex;flex-direction:column;padding:0;overflow:hidden;max-height:75vh;">
+        <!-- Mentor info header -->
+        <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;background:#EEF7F5;border-radius:14px 14px 0 0;flex-shrink:0;">
+          <div style="width:40px;height:40px;border-radius:50%;background:var(--primary);color:white;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">🌿</div>
+          <div>
+            <div style="font-weight:700;font-size:14px;" id="chatMentorName">My KinMentor</div>
+            <div style="font-size:12px;color:var(--muted);" id="chatLastActive">Messages are private and encrypted</div>
           </div>
+          <button class="btn-o" style="margin-left:auto;font-size:12px;padding:5px 12px;" onclick="loadMessages()">↺ Refresh</button>
+        </div>
+        <!-- Messages -->
+        <div class="chat-msgs" id="chatMsgs" style="flex:1;border-radius:0;margin:0;min-height:300px;"><div class="loading-state">Loading messages...</div></div>
+        <!-- Input -->
+        <div class="chat-input-row" style="padding:12px 14px;border-top:1px solid var(--border);margin:0;background:white;border-radius:0 0 14px 14px;flex-shrink:0;">
+          <input id="chatInput" placeholder="Type a message to your KinMentor..." onkeydown="if(event.key==='Enter')sendPrivateMsg()">
+          <button class="chat-send" onclick="sendPrivateMsg()">Send →</button>
         </div>
       </div>
     </div>
@@ -1208,30 +1216,50 @@ async function cancelSub() {
 }
 
 async function loadMessages() {
+  const el = document.getElementById('chatMsgs');
+  const nameEl = document.getElementById('chatMentorName');
+  const lastActiveEl = document.getElementById('chatLastActive');
+
   if (!profileData?.assignedMentorId) {
-    document.getElementById('chatMsgs').innerHTML = '<p style="font-size:13px;color:var(--muted);padding:8px;">You will be able to message your KinMentor once one is assigned by admin.</p>';
+    el.innerHTML = '<div class="loading-state" style="padding:24px;text-align:center;">You will be able to message your KinMentor once one is assigned by the admin team.</div>';
     return;
   }
-  document.getElementById('chatMentorName').textContent = `With: ${profileData.assignedMentorName || 'KinMentor'}`;
+  nameEl.textContent = profileData.assignedMentorName || 'My KinMentor';
+
+  el.innerHTML = '<div class="loading-state">Loading messages...</div>';
   const res = await KV.get(`/api/kinmember/messages/${profileData.assignedMentorId}`);
-  if (!res) return;
+  if (!res) { el.innerHTML = '<div class="loading-state">Could not load messages.</div>'; return; }
   const data = await res.json();
-  if (!data.success) return;
+  if (!data.success) { el.innerHTML = '<div class="loading-state">Could not load messages.</div>'; return; }
   messagesData = data.messages;
-  const el = document.getElementById('chatMsgs');
-  if (!messagesData.length) { el.innerHTML = '<div class="loading-state">No messages yet. Say hello! 👋</div>'; return; }
+  if (!messagesData.length) {
+    el.innerHTML = '<div class="loading-state" style="padding:24px;">No messages yet. Start the conversation! 👋</div>';
+    if (lastActiveEl) lastActiveEl.textContent = 'Messages are private and encrypted';
+    return;
+  }
   el.innerHTML = messagesData.map(m => `<div class="msg ${m.isMine?'mine':'theirs'}">${escapeHtml(m.message)}<div class="msg-meta">${m.isMine?'You':'KinMentor'} · ${KV.fmtDateTime ? KV.fmtDateTime(m.createdAt) : KV.fmtDate(m.createdAt)}</div></div>`).join('');
   el.scrollTop = el.scrollHeight;
+  const last = messagesData[messagesData.length - 1];
+  if (last && lastActiveEl) lastActiveEl.textContent = `Last message: ${KV.fmtDateTime ? KV.fmtDateTime(last.createdAt) : KV.fmtDate(last.createdAt)}`;
 }
 
 async function sendPrivateMsg() {
-  if (!profileData?.assignedMentorId) return;
+  if (!profileData?.assignedMentorId) { KV.showToast('No KinMentor assigned yet.', 'warning'); return; }
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
   if (!msg) return;
   input.value = '';
   const res = await KV.post(`/api/kinmember/messages/${profileData.assignedMentorId}`, { message: msg });
-  if (res?.ok) loadMessages();
+  if (res?.ok) {
+    loadMessages();
+  } else if (res) {
+    const d = await res.json().catch(() => ({}));
+    KV.showToast(d.message || 'Could not send message.', 'error');
+    input.value = msg;
+  } else {
+    KV.showToast('Could not reach server. Please try again.', 'error');
+    input.value = msg;
+  }
 }
 
 function saveSafetyPlan() {

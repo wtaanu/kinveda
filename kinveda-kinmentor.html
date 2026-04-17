@@ -611,6 +611,7 @@ function showPanel(name, el) {
   if (name === 'availability') { initAvailGrid(); populateCopyMonthSelect(); loadAvailability(); }
   if (name === 'sessions') { loadSessions().then(renderSessions); loadAssignedHomework(); }
   if (name === 'chat') loadRecentConversations();
+  if (name === 'homework' || name === 'notes') { if (membersData.length) populateMemberDropdowns(); else loadMembers().then(populateMemberDropdowns); }
   // Auto-close sidebar on mobile after navigation
   if (window.innerWidth <= 768) closeMobSidebar();
 }
@@ -919,8 +920,17 @@ function setNoteTab(el, tab) {
 }
 
 async function loadNotes() {
-  const memberId = document.getElementById('notesMemberSel').value;
+  const memberId = parseInt(document.getElementById('notesMemberSel').value);
   if (!memberId) return;
+  // Try to get notes from the most recent session in local data first
+  const memberSessions = sessionsData
+    .filter(s => s.memberId === memberId && s.status !== 'cancelled')
+    .sort((a, b) => (b.scheduledAt || 0) - (a.scheduledAt || 0));
+  if (memberSessions.length && memberSessions[0].caseNote) {
+    document.getElementById('noteArea').value = memberSessions[0].caseNote;
+    return;
+  }
+  // Fallback: fetch from backend
   const res = await KV.get(`/api/kinmentor/notes/${memberId}`);
   if (!res) return;
   const data = await res.json();
@@ -1089,17 +1099,26 @@ async function saveAvailability() {
   }
   try {
     const res = await KV.post('/api/kinmentor/availability/bulk', { slots });
-    if (!res) return;
+    if (!res) {
+      KV.showToast('Could not reach server — please check your connection and try again.', 'error');
+      return;
+    }
     const data = await res.json().catch(() => ({}));
-    if (data.success) KV.showToast(`✅ ${slots.length} slot${slots.length !== 1 ? 's' : ''} saved successfully!`, 'success');
-    else KV.showToast(data.message || 'Save failed — please try again.', 'error');
+    if (data.success) {
+      KV.showToast(`✅ ${slots.length} slot${slots.length !== 1 ? 's' : ''} saved successfully!`, 'success');
+    } else {
+      KV.showToast(data.message || 'Save failed — please try again.', 'error');
+    }
   } catch(e) {
+    console.error('[saveAvailability]', e);
     KV.showToast('Save failed — check server connection.', 'error');
   }
 }
 
 function populateCopyMonthSelect() {
   const sel = document.getElementById('copyMonthSel');
+  // Clear existing options first to prevent duplicates on repeated panel visits
+  sel.innerHTML = '<option value="">Select month to copy to...</option>';
   const now = new Date();
   for (let i = 0; i <= 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -1114,13 +1133,13 @@ async function copyToMonth() {
   const sel = document.getElementById('copyMonthSel');
   const month = sel.value;
   if (!month) { KV.showToast('Please select a month first.', 'warning'); return; }
-  const label = sel.options[sel.selectedIndex]?.textContent || month;
-  KV.showToast(`Saving availability for ${label}…`, 'info');
+  const label = sel.options[sel.selectedIndex]?.textContent?.replace(' (Current)', '') || month;
+  // saveAvailability saves the current weekly schedule as the repeating template
   await saveAvailability();
 }
 
 async function copyToFuture() {
-  KV.showToast('Saving availability for all future months…', 'info');
+  // Saves the current weekly schedule as the repeating template for all weeks
   await saveAvailability();
 }
 
@@ -1183,13 +1202,36 @@ async function loadRevenue() {
   }
 }
 
-// Notes save
+// Notes save — the Case Notes panel uses member ID, but the backend stores notes per session.
+// We find the most recent session for the selected member and save the note there.
 async function saveNotes() {
-  const sessId = document.getElementById('notesMemberSel').value;
-  if (!sessId) { KV.showToast('Please select a KinMember first.', 'warning'); return; }
+  const memberId = parseInt(document.getElementById('notesMemberSel').value);
+  if (!memberId) { KV.showToast('Please select a KinMember first.', 'warning'); return; }
   const notes = document.getElementById('noteArea').value;
-  const res = await KV.put(`/api/kinmentor/notes/${sessId}`, { notes });
-  if (res?.ok) KV.showToast('Notes saved securely! 🔒', 'success');
+
+  // Find the most recent session for this member from already-loaded sessions data
+  const memberSessions = sessionsData
+    .filter(s => s.memberId === memberId && s.status !== 'cancelled')
+    .sort((a, b) => (b.scheduledAt || 0) - (a.scheduledAt || 0));
+
+  if (!memberSessions.length) {
+    // No sessions yet — save as a standalone note by fetching from backend
+    KV.showToast('No sessions found for this KinMember yet. Notes are attached to sessions.', 'warning');
+    return;
+  }
+
+  const sessionId = memberSessions[0].id;
+  const res = await KV.put(`/api/kinmentor/notes/${sessionId}`, { notes });
+  if (!res) { KV.showToast('Could not reach server. Please try again.', 'error'); return; }
+  if (res.ok) {
+    KV.showToast('Notes saved securely! 🔒', 'success');
+    // Update local cache
+    const s = sessionsData.find(x => x.id === sessionId);
+    if (s) s.caseNote = notes;
+  } else {
+    const d = await res.json().catch(() => ({}));
+    KV.showToast(d.message || 'Save failed — please try again.', 'error');
+  }
 }
 
 // Homework assign
@@ -1197,9 +1239,20 @@ async function assignHomework() {
   const memberId = document.getElementById('hw-member').value;
   const task = document.getElementById('hw-task').value.trim();
   const dueDate = document.getElementById('hw-due').value;
-  if (!memberId || !task) { KV.showToast('Please select a KinMember and enter a task.', 'warning'); return; }
+  if (!memberId) { KV.showToast('Please select a KinMember first.', 'warning'); return; }
+  if (!task) { KV.showToast('Please enter a homework task.', 'warning'); return; }
   const res = await KV.post('/api/kinmentor/homework', { memberId: parseInt(memberId), task, dueDate: dueDate || undefined });
-  if (res?.ok) { KV.showToast('Homework assigned!', 'success'); document.getElementById('hw-task').value=''; }
+  if (!res) { KV.showToast('Could not reach server. Please try again.', 'error'); return; }
+  if (res.ok) {
+    KV.showToast('✅ Homework assigned successfully!', 'success');
+    document.getElementById('hw-task').value = '';
+    document.getElementById('hw-due').value = '';
+    // Refresh assigned homework list if visible
+    loadAssignedHomework();
+  } else {
+    const d = await res.json().catch(() => ({}));
+    KV.showToast(d.message || 'Failed to assign homework — please try again.', 'error');
+  }
 }
 
 // Blog

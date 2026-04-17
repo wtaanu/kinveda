@@ -618,13 +618,16 @@ router.get('/messages/recent', requireAuth, requireKinMentor, (req, res) => {
   const db = getDb();
   const mentorId = req.user.id;
 
-  // Get all members assigned to this mentor
+  // Get all members linked to this mentor: either via assigned_mentor_id OR via a booking session
   const members = db.prepare(`
-    SELECT u.id, u.name_enc
+    SELECT DISTINCT u.id, u.name_enc
     FROM users u
-    JOIN kinmember_profiles kmp ON kmp.user_id = u.id
-    WHERE kmp.assigned_mentor_id = ? AND u.role = 'kinmember' AND u.is_active = 1
-  `).all(mentorId);
+    WHERE u.role = 'kinmember' AND u.is_active = 1
+      AND (
+        EXISTS (SELECT 1 FROM kinmember_profiles kmp WHERE kmp.user_id = u.id AND kmp.assigned_mentor_id = ?)
+        OR EXISTS (SELECT 1 FROM booking_sessions bs WHERE bs.member_id = u.id AND bs.mentor_id = ? AND bs.status != 'cancelled')
+      )
+  `).all(mentorId, mentorId);
 
   const conversations = [];
   for (const member of members) {
@@ -668,10 +671,12 @@ router.get('/messages/:memberId', requireAuth, requireKinMentor, (req, res) => {
   const { decrypt } = require('../middleware/encrypt');
   const memberId = parseInt(req.params.memberId);
 
-  // Verify this member is assigned to this mentor
-  const member = db.prepare('SELECT id FROM kinmember_profiles WHERE user_id = ? AND assigned_mentor_id = ?')
+  // Verify this member is linked to this mentor: assigned OR has a session together
+  const isAssigned = db.prepare('SELECT id FROM kinmember_profiles WHERE user_id = ? AND assigned_mentor_id = ?')
     .get(memberId, req.user.id);
-  if (!member) return res.status(403).json({ success: false, message: 'Member not assigned to you' });
+  const hasSession = db.prepare('SELECT id FROM booking_sessions WHERE member_id = ? AND mentor_id = ? AND status != ? LIMIT 1')
+    .get(memberId, req.user.id, 'cancelled');
+  if (!isAssigned && !hasSession) return res.status(403).json({ success: false, message: 'Member not linked to you' });
 
   const msgs = db.prepare(`
     SELECT cm.*, u.name AS sender_name
@@ -707,10 +712,12 @@ router.post('/messages/:memberId', requireAuth, requireKinMentor, (req, res) => 
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ success: false, message: 'Message required' });
 
-  // Verify this member is assigned to this mentor
-  const member = db.prepare('SELECT id FROM kinmember_profiles WHERE user_id = ? AND assigned_mentor_id = ?')
+  // Verify this member is linked to this mentor: assigned OR has a session
+  const isAssigned = db.prepare('SELECT id FROM kinmember_profiles WHERE user_id = ? AND assigned_mentor_id = ?')
     .get(memberId, req.user.id);
-  if (!member) return res.status(403).json({ success: false, message: 'Member not assigned to you' });
+  const hasSession = db.prepare('SELECT id FROM booking_sessions WHERE member_id = ? AND mentor_id = ? AND status != ? LIMIT 1')
+    .get(memberId, req.user.id, 'cancelled');
+  if (!isAssigned && !hasSession) return res.status(403).json({ success: false, message: 'Member not linked to you' });
 
   db.prepare('INSERT INTO chat_messages (sender_id, receiver_id, message_enc) VALUES (?, ?, ?)')
     .run(req.user.id, memberId, encrypt(message.trim()));
