@@ -1,6 +1,7 @@
 # Environment — NEVER commit
 .env
 *.env
+*.bak
 
 # Database — runtime data only
 kinveda-backend/data/
