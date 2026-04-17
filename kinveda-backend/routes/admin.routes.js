@@ -291,9 +291,13 @@ router.get('/enquiries', (req, res) => {
 router.get('/sessions', (req, res) => {
   const db = getDb();
   const sessions = db.prepare(`
-    SELECT bs.id, bs.scheduled_at, bs.duration_mins, bs.status, bs.payment_status, bs.amount,
+    SELECT bs.id, bs.member_id, bs.mentor_id, bs.scheduled_at, bs.duration_mins,
+           bs.status, bs.payment_status, bs.payment_waived, bs.amount,
+           bs.payment_link, bs.payment_link_id, bs.payment_link_expires_at,
+           bs.invoice_sent, bs.session_payment_confirmed,
            um.name_enc AS member_name_enc, um.email AS member_email,
-           ut.name_enc AS mentor_name_enc, ut.email AS mentor_email
+           ut.name_enc AS mentor_name_enc, ut.email AS mentor_email,
+           (SELECT id FROM payouts WHERE session_id = bs.id LIMIT 1) AS payout_id
     FROM booking_sessions bs
     JOIN users um ON um.id = bs.member_id
     JOIN users ut ON ut.id = bs.mentor_id
@@ -304,15 +308,24 @@ router.get('/sessions', (req, res) => {
     success: true,
     sessions: sessions.map(s => ({
       id: s.id,
+      memberId: s.member_id,
+      mentorId: s.mentor_id,
       scheduledAt: s.scheduled_at,
       durationMins: s.duration_mins,
       status: s.status,
       paymentStatus: s.payment_status,
-      amount: s.amount,
+      paymentWaived: !!s.payment_waived,
+      feeAmount: s.amount,
+      paymentLink: s.payment_link || null,
+      paymentLinkId: s.payment_link_id || null,
+      paymentLinkExpiresAt: s.payment_link_expires_at || null,
+      invoiceSent: !!s.invoice_sent,
+      sessionPaymentConfirmed: !!s.session_payment_confirmed,
       memberName: decrypt(s.member_name_enc),
       memberEmail: s.member_email,
       mentorName: decrypt(s.mentor_name_enc),
-      mentorEmail: s.mentor_email
+      mentorEmail: s.mentor_email,
+      payoutId: s.payout_id || null
     }))
   });
 });
@@ -322,11 +335,13 @@ router.get('/sessions/pending', (req, res) => {
   const db = getDb();
   const rows = db.prepare(`
     SELECT bs.id, bs.member_id, bs.mentor_id, bs.duration_mins, bs.notes_enc, bs.created_at,
-           um.name_enc AS member_name_enc, um.email AS member_email,
-           ut.name_enc AS mentor_name_enc, ut.email AS mentor_email
+           um.name_enc AS member_name_enc, um.email AS member_email, um.phone_enc AS member_phone_enc,
+           ut.name_enc AS mentor_name_enc, ut.email AS mentor_email,
+           kmp.fee_30min, kmp.fee_60min, kmp.fee_monthly
     FROM booking_sessions bs
     JOIN users um ON um.id = bs.member_id
     JOIN users ut ON ut.id = bs.mentor_id
+    LEFT JOIN kinmentor_profiles kmp ON kmp.user_id = bs.mentor_id
     WHERE bs.status = 'pending'
     ORDER BY bs.created_at ASC
   `).all();
@@ -340,29 +355,34 @@ router.get('/sessions/pending', (req, res) => {
       durationMins: r.duration_mins,
       memberName: decrypt(r.member_name_enc),
       memberEmail: r.member_email,
+      memberPhone: decrypt(r.member_phone_enc),
       mentorName: decrypt(r.mentor_name_enc),
       mentorEmail: r.mentor_email,
       message: r.notes_enc ? decrypt(r.notes_enc) : null,
-      createdAt: r.created_at
+      createdAt: r.created_at,
+      mentorFee30: r.fee_30min || 0,
+      mentorFee60: r.fee_60min || 0,
+      suggestedFee: r.duration_mins <= 30 ? (r.fee_30min || 0) : (r.fee_60min || 0)
     }))
   });
 });
 
-// ─── PATCH: Approve Session Request (admin sets date/time, optionally reassigns mentor) ────
+// ─── PATCH: Approve Session Request ─────────────────────────────────────────
+// Accepts: scheduledAt, assignedMentorId, amount, waivePayment, concern
 router.patch('/sessions/:id/approve',
   [body('scheduledAt').isInt({ min: 1 }).withMessage('Valid scheduled timestamp required.')],
-  (req, res) => {
+  async (req, res) => {
     const errors = validationResult(req);
     if (!errors.isEmpty()) return res.status(400).json({ success: false, errors: errors.array() });
 
     const sessionId = parseInt(req.params.id);
-    const { scheduledAt, assignedMentorId } = req.body;
+    const { scheduledAt, assignedMentorId, amount, waivePayment, concern } = req.body;
     const db = getDb();
     const crypto = require('crypto');
 
-    // Load the pending session
+    // Load the pending session with member phone for payment link
     let session = db.prepare(`
-      SELECT bs.*, um.name_enc AS member_name_enc, um.email AS member_email,
+      SELECT bs.*, um.name_enc AS member_name_enc, um.email AS member_email, um.phone_enc AS member_phone_enc,
              ut.name_enc AS mentor_name_enc, ut.email AS mentor_email
       FROM booking_sessions bs
       JOIN users um ON um.id = bs.member_id
@@ -372,66 +392,179 @@ router.patch('/sessions/:id/approve',
 
     if (!session) return res.status(404).json({ success: false, message: 'Pending session request not found.' });
 
-    // If admin is reassigning to a different mentor, validate and apply
     let finalMentorId = session.mentor_id;
     if (assignedMentorId && parseInt(assignedMentorId) !== session.mentor_id) {
-      const newMentor = db.prepare(
-        'SELECT name_enc, email FROM users WHERE id = ? AND role = ? AND is_active = 1'
-      ).get(parseInt(assignedMentorId), 'kinmentor');
+      const newMentor = db.prepare('SELECT name_enc, email FROM users WHERE id = ? AND role = ? AND is_active = 1')
+        .get(parseInt(assignedMentorId), 'kinmentor');
       if (!newMentor) return res.status(400).json({ success: false, message: 'Selected mentor not found or inactive.' });
       finalMentorId = parseInt(assignedMentorId);
-      // Override session fields so emails go to the assigned mentor
-      session = {
-        ...session,
-        mentor_id: finalMentorId,
-        mentor_name_enc: newMentor.name_enc,
-        mentor_email: newMentor.email
-      };
+      session = { ...session, mentor_id: finalMentorId, mentor_name_enc: newMentor.name_enc, mentor_email: newMentor.email };
     }
 
     const roomName = `kv-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
     const now = Math.floor(Date.now() / 1000);
+    const sessionAmount = parseFloat(amount) || 0;
+    const isWaived = !!waivePayment;
+    const payStatus = isWaived ? 'waived' : (sessionAmount > 0 ? 'unpaid' : 'unpaid');
+    const notesEnc = concern ? encrypt(concern) : session.notes_enc;
+
+    // ── Generate Razorpay Payment Link if not waived and amount > 0 ──
+    let paymentLink = null, paymentLinkId = null, paymentLinkExpiresAt = null;
+    if (!isWaived && sessionAmount > 0) {
+      try {
+        const Razorpay = require('razorpay');
+        const rzp = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+        const memberName = decrypt(session.member_name_enc) || 'KinMember';
+        const memberPhone = decrypt(session.member_phone_enc) || '';
+        const expiresAt = now + 24 * 60 * 60; // 24 hours
+        const link = await rzp.paymentLink.create({
+          amount: Math.round(sessionAmount * 100),
+          currency: 'INR',
+          description: `KinVeda Session – ${session.duration_mins} min with ${decrypt(session.mentor_name_enc)}`,
+          customer: { name: memberName, email: session.member_email, contact: memberPhone.replace(/\D/g,'').slice(-10) ? `+91${memberPhone.replace(/\D/g,'').slice(-10)}` : undefined },
+          expire_by: expiresAt,
+          reminder_enable: true,
+          notify: { sms: false, email: false }, // we send our own email
+          notes: { sessionId: String(sessionId), type: 'session_payment' }
+        });
+        paymentLink = link.short_url;
+        paymentLinkId = link.id;
+        paymentLinkExpiresAt = expiresAt;
+      } catch (e) {
+        console.error('[PaymentLink] creation failed:', e.message);
+        // Don't block approval if payment link fails — admin can resend later
+      }
+    }
 
     db.prepare(`
       UPDATE booking_sessions
-      SET status = 'confirmed', scheduled_at = ?, video_room = ?,
-          mentor_id = ?, payment_status = 'pending', updated_at = ?
+      SET status = 'confirmed', scheduled_at = ?, video_room = ?, mentor_id = ?,
+          payment_status = ?, payment_waived = ?, amount = ?,
+          session_notes_enc = ?,
+          payment_link = ?, payment_link_id = ?, payment_link_expires_at = ?,
+          updated_at = ?
       WHERE id = ?
-    `).run(scheduledAt, roomName, finalMentorId, now, sessionId);
+    `).run(scheduledAt, roomName, finalMentorId, payStatus, isWaived ? 1 : 0, sessionAmount,
+      notesEnc, paymentLink, paymentLinkId, paymentLinkExpiresAt, now, sessionId);
 
-    // Create video session entry
     db.prepare('INSERT OR IGNORE INTO video_sessions (session_id, room_name, created_at) VALUES (?, ?, ?)').run(sessionId, roomName, now);
-
     auditLog(db, req.user.id, 'APPROVE_SESSION', 'booking_sessions', sessionId,
-      { scheduledAt, assignedMentorId: finalMentorId }, req.ip);
+      { scheduledAt, assignedMentorId: finalMentorId, amount: sessionAmount, waivePayment: isWaived }, req.ip);
 
-    // Send approval email to member
+    const { sendSessionPaymentLinkEmail } = require('../config/mailer');
+
+    // Email member: approval + payment link (if applicable)
     try {
-      sendSessionApprovedEmail(
-        session.member_email,
-        decrypt(session.member_name_enc),
-        decrypt(session.mentor_name_enc),
-        scheduledAt,
-        session.duration_mins,
-        'kinmember'
-      ).catch(console.error);
+      sendSessionApprovedEmail(session.member_email, decrypt(session.member_name_enc),
+        decrypt(session.mentor_name_enc), scheduledAt, session.duration_mins, 'kinmember').catch(console.error);
+      if (paymentLink) {
+        sendSessionPaymentLinkEmail(session.member_email, decrypt(session.member_name_enc),
+          decrypt(session.mentor_name_enc), sessionAmount, paymentLink, paymentLinkExpiresAt).catch(console.error);
+      }
     } catch(e) { console.error('[mail] approve→member:', e.message); }
 
-    // Send approval email to assigned mentor
+    // Email mentor: confirmation
     try {
-      sendSessionApprovedEmail(
-        session.mentor_email,
-        decrypt(session.mentor_name_enc),
-        decrypt(session.member_name_enc),
-        scheduledAt,
-        session.duration_mins,
-        'kinmentor'
-      ).catch(console.error);
+      sendSessionApprovedEmail(session.mentor_email, decrypt(session.mentor_name_enc),
+        decrypt(session.member_name_enc), scheduledAt, session.duration_mins, 'kinmentor').catch(console.error);
     } catch(e) { console.error('[mail] approve→mentor:', e.message); }
 
-    return res.json({ success: true, sessionId, videoRoom: roomName, assignedMentorId: finalMentorId });
+    return res.json({ success: true, sessionId, videoRoom: roomName, assignedMentorId: finalMentorId, paymentLink });
   }
 );
+
+// ─── PATCH: Mark Session Payment Received (offline / manual) ─────────────────
+router.patch('/sessions/:id/payment/mark-received', (req, res) => {
+  const db = getDb();
+  const sessionId = parseInt(req.params.id);
+  const { note } = req.body;
+  const now = Math.floor(Date.now() / 1000);
+
+  const session = db.prepare(`
+    SELECT bs.*, um.name_enc AS member_name_enc, um.email AS member_email,
+           ut.name_enc AS mentor_name_enc
+    FROM booking_sessions bs
+    JOIN users um ON um.id = bs.member_id
+    JOIN users ut ON ut.id = bs.mentor_id
+    WHERE bs.id = ?
+  `).get(sessionId);
+  if (!session) return res.status(404).json({ success: false, message: 'Session not found.' });
+
+  db.prepare(`UPDATE booking_sessions SET payment_status = 'paid', session_payment_confirmed = 1, updated_at = ? WHERE id = ?`)
+    .run(now, sessionId);
+
+  // Log offline payment in payments table
+  db.prepare(`
+    INSERT INTO payments (user_id, session_id, amount_paise, currency, status, payment_type, created_at, updated_at)
+    VALUES (?, ?, ?, 'INR', 'paid', 'session_offline', unixepoch(), unixepoch())
+  `).run(session.member_id, sessionId, Math.round((session.amount || 0) * 100));
+
+  auditLog(db, req.user.id, 'MARK_PAYMENT_OFFLINE', 'booking_sessions', sessionId, { note }, req.ip);
+
+  // Send invoice
+  const { sendSessionInvoiceEmail } = require('../config/mailer');
+  try {
+    sendSessionInvoiceEmail(
+      session.member_email, decrypt(session.member_name_enc), decrypt(session.mentor_name_enc),
+      session.amount || 0, session.scheduled_at, session.duration_mins,
+      `INV-${sessionId}-${now}`, 'offline'
+    ).catch(console.error);
+  } catch(e) { console.error('[mail] invoice:', e.message); }
+
+  db.prepare('UPDATE booking_sessions SET invoice_sent = 1 WHERE id = ?').run(sessionId);
+  res.json({ success: true, message: 'Payment marked as received. Invoice sent to member.' });
+});
+
+// ─── POST: Resend Payment Link ────────────────────────────────────────────────
+router.post('/sessions/:id/payment-link/resend', async (req, res) => {
+  const db = getDb();
+  const sessionId = parseInt(req.params.id);
+  const { amount: overrideAmount } = req.body;
+  const now = Math.floor(Date.now() / 1000);
+
+  const session = db.prepare(`
+    SELECT bs.*, um.name_enc AS member_name_enc, um.email AS member_email, um.phone_enc AS member_phone_enc,
+           ut.name_enc AS mentor_name_enc
+    FROM booking_sessions bs
+    JOIN users um ON um.id = bs.member_id
+    JOIN users ut ON ut.id = bs.mentor_id
+    WHERE bs.id = ?
+  `).get(sessionId);
+  if (!session) return res.status(404).json({ success: false, message: 'Session not found.' });
+
+  const sessionAmount = parseFloat(overrideAmount) || session.amount || 0;
+  if (sessionAmount <= 0) return res.status(400).json({ success: false, message: 'Amount required to generate payment link.' });
+
+  try {
+    const Razorpay = require('razorpay');
+    const rzp = new Razorpay({ key_id: process.env.RAZORPAY_KEY_ID, key_secret: process.env.RAZORPAY_KEY_SECRET });
+    const expiresAt = now + 24 * 60 * 60;
+    const memberPhone = decrypt(session.member_phone_enc) || '';
+    const link = await rzp.paymentLink.create({
+      amount: Math.round(sessionAmount * 100),
+      currency: 'INR',
+      description: `KinVeda Session – ${session.duration_mins} min with ${decrypt(session.mentor_name_enc)}`,
+      customer: { name: decrypt(session.member_name_enc) || 'KinMember', email: session.member_email,
+        contact: memberPhone.replace(/\D/g,'').slice(-10) ? `+91${memberPhone.replace(/\D/g,'').slice(-10)}` : undefined },
+      expire_by: expiresAt,
+      reminder_enable: true,
+      notify: { sms: false, email: false },
+      notes: { sessionId: String(sessionId), type: 'session_payment' }
+    });
+
+    db.prepare(`UPDATE booking_sessions SET payment_link = ?, payment_link_id = ?, payment_link_expires_at = ?, amount = ?, updated_at = ? WHERE id = ?`)
+      .run(link.short_url, link.id, expiresAt, sessionAmount, now, sessionId);
+
+    const { sendSessionPaymentLinkEmail } = require('../config/mailer');
+    sendSessionPaymentLinkEmail(session.member_email, decrypt(session.member_name_enc),
+      decrypt(session.mentor_name_enc), sessionAmount, link.short_url, expiresAt).catch(console.error);
+
+    res.json({ success: true, paymentLink: link.short_url, expiresAt });
+  } catch(e) {
+    console.error('[PaymentLink] resend failed:', e.message);
+    res.status(500).json({ success: false, message: 'Could not generate payment link: ' + e.message });
+  }
+});
 
 // ─── PATCH: Update Session Status (cancel/etc) ───────────────────────────────
 router.patch('/sessions/:id/status', [body('status').isIn(['cancelled','confirmed','completed'])], (req, res) => {

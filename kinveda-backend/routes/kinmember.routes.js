@@ -113,8 +113,11 @@ router.post('/assessment', requireAuth, requireKinMember, (req, res) => {
 router.get('/sessions', requireAuth, requireKinMember, (req, res) => {
   const db = getDb();
   const sessions = db.prepare(`
-    SELECT bs.id, bs.scheduled_at, bs.duration_mins, bs.status, bs.payment_status, bs.amount, bs.feedback_given,
-           u.name_enc AS mentor_name_enc,
+    SELECT bs.id, bs.scheduled_at, bs.duration_mins, bs.status,
+           bs.payment_status, bs.payment_waived, bs.amount, bs.feedback_given,
+           bs.payment_link, bs.payment_link_expires_at, bs.invoice_sent,
+           bs.video_room, bs.recording_url,
+           u.name_enc AS mentor_name_enc, u.id AS mentor_id,
            mp.avg_rating, mp.specializations
     FROM booking_sessions bs
     JOIN users u ON u.id = bs.mentor_id
@@ -123,20 +126,31 @@ router.get('/sessions', requireAuth, requireKinMember, (req, res) => {
     ORDER BY bs.scheduled_at DESC
   `).all(req.user.id);
 
+  const now = Math.floor(Date.now() / 1000);
   return res.json({
     success: true,
-    sessions: sessions.map(s => ({
-      id: s.id,
-      scheduledAt: s.scheduled_at,
-      durationMins: s.duration_mins,
-      status: s.status,
-      paymentStatus: s.payment_status,
-      amount: s.amount,
-      feedbackGiven: !!s.feedback_given,
-      mentorName: decrypt(s.mentor_name_enc),
-      mentorRating: s.avg_rating,
-      specializations: s.specializations
-    }))
+    sessions: sessions.map(s => {
+      const linkExpired = s.payment_link_expires_at && s.payment_link_expires_at < now;
+      return {
+        id: s.id,
+        scheduledAt: s.scheduled_at,
+        durationMins: s.duration_mins,
+        status: s.status,
+        paymentStatus: s.payment_status,
+        paymentWaived: !!s.payment_waived,
+        feeAmount: s.amount || 0,
+        feedbackGiven: !!s.feedback_given,
+        paymentLink: (!linkExpired && s.payment_link) ? s.payment_link : null,
+        paymentLinkExpired: !!linkExpired,
+        invoiceSent: !!s.invoice_sent,
+        videoRoom: s.video_room || null,
+        recordingUrl: s.recording_url || null,
+        mentorId: s.mentor_id,
+        mentorName: decrypt(s.mentor_name_enc),
+        mentorRating: s.avg_rating,
+        specializations: s.specializations
+      };
+    })
   });
 });
 

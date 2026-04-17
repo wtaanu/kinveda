@@ -870,12 +870,18 @@
       const mentorOpts = allMentors.map(m =>
         `<option value="${m.id}" ${m.id === r.mentorId ? 'selected' : ''}>${escAdmin(m.name)}${m.id === r.mentorId ? ' ✦ requested' : ''}</option>`
       ).join('');
+      // Suggested fee based on duration
+      const suggestedFee = r.suggestedFee || (r.durationMins <= 30 ? (r.fee30min || 0) : (r.fee60min || 0));
+      const feeNote = suggestedFee > 0
+        ? `Mentor rate: ₹${r.fee30min || 0} / 30 min · ₹${r.fee60min || 0} / 60 min — Suggested: <strong>₹${suggestedFee}</strong>`
+        : `<span style="color:#DC2626;">Mentor has not set fees</span>`;
+
       return `
       <div style="border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px;background:#FAFAF7;">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
           <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">KinMember</div>
             <div style="font-size:14px;font-weight:700;margin-top:2px;">${escAdmin(r.memberName)}</div>
-            <div style="font-size:12px;color:#78716C;">${r.memberEmail}</div></div>
+            <div style="font-size:12px;color:#78716C;">${r.memberEmail}${r.memberPhone ? ' · ' + escAdmin(r.memberPhone) : ''}</div></div>
           <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Requested KinMentor</div>
             <div style="font-size:14px;font-weight:700;margin-top:2px;">${escAdmin(r.mentorName)}</div>
             <div style="font-size:12px;color:#78716C;">${r.mentorEmail}</div></div>
@@ -883,9 +889,36 @@
             <div style="font-size:14px;font-weight:600;margin-top:2px;">${r.durationMins} minutes</div></div>
           <div><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Requested On</div>
             <div style="font-size:13px;margin-top:2px;">${new Date(r.createdAt * 1000).toLocaleDateString('en-IN')}</div></div>
-          ${r.message ? `<div style="grid-column:1/-1;"><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Member's Note</div>
+          ${r.message ? `<div style="grid-column:1/-1;"><div style="font-size:11px;font-weight:700;color:#78716C;text-transform:uppercase;letter-spacing:.5px;">Member's Note / Concern</div>
             <div style="font-size:13px;margin-top:2px;font-style:italic;color:#57534E;">"${escAdmin(r.message)}"</div></div>` : ''}
         </div>
+
+        <!-- Payment Section -->
+        <div style="background:#FFF8EC;border:1px solid #FDE68A;border-radius:10px;padding:14px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:#92400E;margin-bottom:10px;">💳 Payment Setup</div>
+          <div style="font-size:12px;color:#78716C;margin-bottom:10px;">${feeNote}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;">
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">₹ Session Amount (INR)</label>
+              <input type="number" id="approveAmt-${r.id}" min="0" value="${suggestedFee}"
+                style="width:100%;padding:9px 12px;border:1.5px solid #FDE68A;border-radius:8px;font-size:13px;background:white;"
+                placeholder="Enter amount">
+            </div>
+            <div>
+              <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">📝 Concern / Session Note</label>
+              <input type="text" id="approveConcern-${r.id}" value="${escAdmin(r.message || '')}"
+                style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:white;"
+                placeholder="Note for mentor (pre-filled from member)">
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="approveWaive-${r.id}" onchange="toggleWaive(${r.id})" style="width:16px;height:16px;cursor:pointer;">
+            <label for="approveWaive-${r.id}" style="font-size:13px;font-weight:600;color:#059669;cursor:pointer;">
+              Waive off payment for this session (mark as free)
+            </label>
+          </div>
+        </div>
+
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;border-top:1px solid var(--border);padding-top:14px;margin-bottom:12px;">
           <div>
             <label style="font-size:12px;font-weight:600;color:#78716C;display:block;margin-bottom:5px;">📅 Session Date & Time (IST)</label>
@@ -900,14 +933,26 @@
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
           <button onclick="approveSessionRequest(${r.id})" style="background:#059669;color:white;border:none;padding:10px 22px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">
-            ✅ Approve &amp; Assign
+            ✅ Approve &amp; Send Payment Link
           </button>
           <button onclick="rejectSessionRequest(${r.id})" style="background:#DC2626;color:white;border:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">
             ✕ Decline
           </button>
         </div>
+        <!-- Payment link result shown here after approval -->
+        <div id="payLinkResult-${r.id}" style="display:none;margin-top:12px;"></div>
       </div>`;
     }).join('');
+  }
+
+  function toggleWaive(sessionId) {
+    const waive = document.getElementById('approveWaive-' + sessionId);
+    const amtInput = document.getElementById('approveAmt-' + sessionId);
+    if (waive && amtInput) {
+      amtInput.disabled = waive.checked;
+      amtInput.style.opacity = waive.checked ? '0.4' : '1';
+      if (waive.checked) amtInput.value = '0';
+    }
   }
 
   function escAdmin(str) {
@@ -916,8 +961,12 @@
   }
 
   async function approveSessionRequest(sessionId) {
-    const dtInput = document.getElementById('approveDt-' + sessionId);
-    const reassignSel = document.getElementById('reassignMentor-' + sessionId);
+    const dtInput      = document.getElementById('approveDt-'       + sessionId);
+    const reassignSel  = document.getElementById('reassignMentor-'  + sessionId);
+    const amtInput     = document.getElementById('approveAmt-'      + sessionId);
+    const waiveChk     = document.getElementById('approveWaive-'    + sessionId);
+    const concernInput = document.getElementById('approveConcern-'  + sessionId);
+
     if (!dtInput || !dtInput.value) {
       KV.showToast('Please select a date and time before approving.', 'warning');
       dtInput?.focus();
@@ -929,15 +978,49 @@
       return;
     }
     const assignedMentorId = reassignSel ? parseInt(reassignSel.value) || null : null;
+    const waivePayment = waiveChk ? waiveChk.checked : false;
+    const amount = waivePayment ? 0 : (parseFloat(amtInput?.value) || 0);
+    const concern = concernInput ? concernInput.value.trim() : '';
+
     const res = await adminFetch(`/sessions/${sessionId}/approve`, {
       method: 'PATCH',
-      body: JSON.stringify({ scheduledAt, assignedMentorId })
+      body: JSON.stringify({ scheduledAt, assignedMentorId, amount, waivePayment, concern })
     });
     if (!res) return;
     const data = await res.json().catch(() => ({}));
     if (data.success) {
-      KV.showToast('✅ Session approved! Confirmation emails sent to both parties.', 'success');
-      loadSessionRequests();
+      if (waivePayment) {
+        KV.showToast('✅ Session approved! Payment waived. Confirmation email sent.', 'success');
+        loadSessionRequests();
+      } else if (data.paymentLink) {
+        KV.showToast('✅ Session approved! Payment link sent to member\'s email.', 'success');
+        // Show payment link inline without removing the card immediately
+        const resultEl = document.getElementById('payLinkResult-' + sessionId);
+        if (resultEl) {
+          resultEl.style.display = 'block';
+          resultEl.innerHTML = `
+            <div style="background:#D1FAE5;border:1px solid #6EE7B7;border-radius:10px;padding:14px;">
+              <div style="font-size:13px;font-weight:700;color:#065F46;margin-bottom:8px;">✅ Payment link generated &amp; emailed to member</div>
+              <div style="font-size:12px;color:#374151;margin-bottom:8px;">Amount: <strong>₹${amount}</strong> · Valid 24 hours</div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a href="${data.paymentLink}" target="_blank"
+                  style="background:#059669;color:white;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;">
+                  🔗 Open Payment Link
+                </a>
+                <button onclick="navigator.clipboard.writeText('${data.paymentLink}').then(()=>KV.showToast('Copied!','success'))"
+                  style="background:white;border:1.5px solid #6EE7B7;color:#065F46;padding:7px 14px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;">
+                  📋 Copy Link
+                </button>
+                <button onclick="loadSessionRequests()" style="background:#F3F4F6;border:1.5px solid var(--border);color:#374151;padding:7px 14px;border-radius:7px;font-size:12px;cursor:pointer;">
+                  Refresh List
+                </button>
+              </div>
+            </div>`;
+        }
+      } else {
+        KV.showToast('✅ Session approved! Confirmation emails sent.', 'success');
+        loadSessionRequests();
+      }
     } else {
       KV.showToast(data.message || 'Approval failed.', 'error');
     }
@@ -973,22 +1056,51 @@
       const sc = SESSION_STATUS_COLORS[s.status] || { bg:'#F5F5F4', color:'#57534E', label: s.status };
       const statusPill = `<span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:5px;background:${sc.bg};color:${sc.color};">${sc.label}</span>`;
       const needsPayout = s.status === 'completed' && !s.payoutId && s.paymentStatus === 'paid';
-      const canKill = s.status === 'pending' || s.status === 'confirmed';
+      const now = Math.floor(Date.now() / 1000);
+      const isFuture = !s.scheduledAt || s.scheduledAt > now;
+      const canKill = (s.status === 'pending' || s.status === 'confirmed') && isFuture;
+
+      // Payment link status
+      const linkExpired = s.paymentLinkExpiresAt && s.paymentLinkExpiresAt < now;
+      const hasActiveLink = s.paymentLink && !linkExpired;
+      const isUnpaid = s.paymentStatus !== 'paid' && !s.paymentWaived;
+
+      // Payment pill
+      let payPill = '';
+      if (s.paymentWaived) {
+        payPill = `<span style="font-size:10px;padding:2px 8px;border-radius:5px;background:#D1FAE5;color:#065F46;font-weight:700;">Waived</span>`;
+      } else if (s.paymentStatus === 'paid') {
+        payPill = `<span style="font-size:10px;padding:2px 8px;border-radius:5px;background:#DBEAFE;color:#1E40AF;font-weight:700;">${s.invoiceSent ? '🧾 Invoice Sent' : '✅ Paid'}</span>`;
+      } else if (s.feeAmount > 0 || s.paymentLink) {
+        payPill = `<span style="font-size:10px;padding:2px 8px;border-radius:5px;background:#FEF3C7;color:#92400E;font-weight:700;">Unpaid${s.feeAmount ? ' ₹'+s.feeAmount : ''}</span>`;
+      }
 
       const actions = [];
       if (needsPayout) actions.push(`<button onclick="openPayoutModal(${s.id},${s.mentorId},'${escAdmin(s.memberName)} → ${escAdmin(s.mentorName)}',${s.feeAmount||0})" style="background:var(--primary);color:white;border:none;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">💳 Payout</button>`);
       if (canKill) actions.push(`<button onclick="killSession(${s.id})" style="background:#FEE2E2;color:#991B1B;border:1px solid #FCA5A5;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">🚫 Cancel</button>`);
       if (s.status === 'completed' && s.payoutId) actions.push('<span style="font-size:11px;font-weight:700;color:#059669;">✓ Paid Out</span>');
 
+      // Payment link + offline mark actions (only for unpaid, non-cancelled sessions)
+      const payActions = [];
+      if (isUnpaid && s.status !== 'cancelled' && s.feeAmount > 0) {
+        if (hasActiveLink) {
+          payActions.push(`<a href="${s.paymentLink}" target="_blank" style="background:#EEF7F5;border:1px solid #2D7D6F;color:#1A5C52;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;text-decoration:none;">🔗 Payment Link</a>`);
+          payActions.push(`<button onclick="adminResendPaymentLink(${s.id})" style="background:#F3F4F6;border:1px solid var(--border);color:#374151;padding:5px 11px;border-radius:6px;font-size:11px;cursor:pointer;">↺ Resend</button>`);
+        } else if (s.paymentLink && linkExpired) {
+          payActions.push(`<button onclick="adminResendPaymentLink(${s.id})" style="background:#FFF7ED;border:1px solid #D97706;color:#92400E;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">↺ Regenerate Link</button>`);
+        }
+        payActions.push(`<button onclick="adminMarkPaidOffline(${s.id})" style="background:#D1FAE5;border:1px solid #6EE7B7;color:#065F46;padding:5px 11px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">✓ Mark Paid (Offline)</button>`);
+      }
+
       return `<div style="padding:12px;border:1px solid var(--border);border-radius:9px;margin-bottom:8px;background:white;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
-          <div style="min-width:0;">
+          <div style="min-width:0;flex:1;">
             <div style="font-size:13px;font-weight:700;margin-bottom:2px;">${escAdmin(s.memberName)} → ${escAdmin(s.mentorName)}</div>
             <div style="font-size:11px;color:#78716C;">${s.scheduledAt ? KV.fmtDate(s.scheduledAt) : 'Not scheduled'} · ${s.durationMins||50} min · ${KV.fmtINR(s.feeAmount||0)}</div>
-            ${s.recordingUrl ? `<div style="margin-top:4px;font-size:11px;color:#5A4F8A;">🎬 <a href="${s.recordingUrl}" target="_blank">Recording</a></div>` : ''}
+            ${payActions.length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;">${payActions.join('')}</div>` : ''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
-            ${statusPill}
+            <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">${statusPill}${payPill}</div>
             <div style="display:flex;gap:6px;">${actions.join('')}</div>
           </div>
         </div>
@@ -1011,6 +1123,32 @@
       loadDashRevenue();
     } else {
       KV.showToast(data.message || 'Could not cancel session.', 'error');
+    }
+  }
+
+  async function adminMarkPaidOffline(sessionId) {
+    if (!await kvConfirmAsync('Mark as Paid (Offline)?', 'This will mark the session payment as received offline and send an invoice to the member. This cannot be undone.', 'Mark Paid', 'confirm')) return;
+    const res = await adminFetch(`/sessions/${sessionId}/payment/mark-received`, { method: 'PATCH' });
+    if (!res) return;
+    const data = await res.json().catch(() => ({}));
+    if (data.success) {
+      KV.showToast('✅ Payment marked as received. Invoice emailed to member.', 'success');
+      loadSessionsPanel();
+      loadDashRevenue();
+    } else {
+      KV.showToast(data.message || 'Could not mark payment.', 'error');
+    }
+  }
+
+  async function adminResendPaymentLink(sessionId) {
+    const res = await adminFetch(`/sessions/${sessionId}/payment-link/resend`, { method: 'POST' });
+    if (!res) return;
+    const data = await res.json().catch(() => ({}));
+    if (data.success) {
+      KV.showToast('✅ Payment link regenerated and emailed to member.', 'success');
+      loadSessionsPanel();
+    } else {
+      KV.showToast(data.message || 'Could not resend payment link.', 'error');
     }
   }
 

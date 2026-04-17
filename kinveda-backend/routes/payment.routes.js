@@ -15,7 +15,7 @@ const crypto = require('crypto');
 const { getDb } = require('../config/database');
 const { requireAuth, requireKinMember } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../middleware/encrypt');
-const { sendPaymentConfirmationEmail, sendSessionConfirmation } = require('../config/mailer');
+const { sendPaymentConfirmationEmail, sendSessionConfirmation, sendSessionInvoiceEmail } = require('../config/mailer');
 
 // ─── Razorpay instance ────────────────────────────────────────────────────────
 function getRazorpay() {
@@ -392,6 +392,72 @@ router.post('/webhook', express.raw({ type: 'application/json' }), (req, res) =>
         UPDATE payments SET status = 'failed', updated_at = unixepoch()
         WHERE razorpay_order_id = ?
       `).run(orderId);
+    }
+
+    // ─── payment_link.paid — fired when member pays via the payment link ────
+    if (event.event === 'payment_link.paid') {
+      const plEntity  = event.payload.payment_link.entity;
+      const payEntity = event.payload.payment.entity;
+      const plId      = plEntity.id;           // payment_link_id stored in booking_sessions
+      const paymentId = payEntity.id;
+      const now = Math.floor(Date.now() / 1000);
+
+      // Find the session with this payment link id
+      const session = db.prepare(`
+        SELECT bs.*, u.email AS member_email, u.name_enc AS member_name_enc,
+               um.email AS mentor_email, um.name_enc AS mentor_name_enc
+        FROM booking_sessions bs
+        JOIN users u  ON u.id  = bs.member_id
+        JOIN users um ON um.id = bs.mentor_id
+        WHERE bs.payment_link_id = ?
+      `).get(plId);
+
+      if (session && session.payment_status !== 'paid') {
+        const amountINR = Math.round((payEntity.amount || 0) / 100);
+
+        // Mark session paid + confirmed
+        db.prepare(`
+          UPDATE booking_sessions
+          SET payment_status = 'paid', status = 'confirmed',
+              session_payment_confirmed = 1, invoice_sent = 0, updated_at = ?
+          WHERE id = ?
+        `).run(now, session.id);
+
+        // Log in payments table
+        db.prepare(`
+          INSERT INTO payments
+            (user_id, session_id, razorpay_payment_id, amount_paise, currency, status, payment_type, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'INR', 'paid', 'session', ?, ?)
+        `).run(session.member_id, session.id, paymentId, amountINR * 100, now, now);
+
+        // Generate Jitsi room if not set
+        if (!session.video_room) {
+          const roomName = `kv-${session.id}-${crypto.randomBytes(6).toString('hex')}`;
+          db.prepare('UPDATE booking_sessions SET video_room = ? WHERE id = ?').run(roomName, session.id);
+          db.prepare(`
+            INSERT OR IGNORE INTO video_sessions (session_id, room_name, created_at) VALUES (?, ?, ?)
+          `).run(session.id, roomName, now);
+        }
+
+        // Send invoice email to member
+        try {
+          const { decrypt } = require('../middleware/encrypt');
+          const memberName = decrypt(session.member_name_enc);
+          const mentorName = decrypt(session.mentor_name_enc);
+          sendSessionInvoiceEmail(
+            session.member_email,
+            memberName,
+            mentorName,
+            amountINR,
+            session.scheduled_at,
+            session.duration_mins,
+            `KV-${session.id}-${paymentId}`,
+            'online'
+          ).then(() => {
+            db.prepare('UPDATE booking_sessions SET invoice_sent = 1 WHERE id = ?').run(session.id);
+          }).catch(console.error);
+        } catch (e) { console.error('[webhook] invoice email:', e.message); }
+      }
     }
 
     res.json({ received: true });

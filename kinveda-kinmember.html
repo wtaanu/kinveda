@@ -772,7 +772,19 @@ async function loadSessions() {
   const next = confirmedSessions.find(s => s.scheduledAt > Date.now()/1000 && s.status !== 'cancelled');
   if (next) {
     document.getElementById('nextSessionLine').textContent = `Next session: ${KV.fmtDate(next.scheduledAt)} with ${next.mentorName}`;
-    if (next.paymentStatus === 'unpaid') document.getElementById('payBanner').style.display = 'flex';
+    const needsPay = (next.paymentStatus === 'unpaid' || next.paymentStatus === 'unpaid') && !next.paymentWaived && next.feeAmount > 0;
+    if (needsPay) {
+      const banner = document.getElementById('payBanner');
+      if (banner) {
+        banner.style.display = 'flex';
+        // Update Pay Now button to open payment link if available
+        const payBtn = banner.querySelector('.pay-btn');
+        if (payBtn && next.paymentLink) {
+          payBtn.onclick = () => window.open(next.paymentLink, '_blank');
+          payBtn.textContent = `Pay ${KV.fmtINR(next.feeAmount)} →`;
+        }
+      }
+    }
   } else if (pendingSessions.length > 0) {
     document.getElementById('nextSessionLine').textContent = `${pendingSessions.length} session request${pendingSessions.length > 1 ? 's' : ''} awaiting admin approval.`;
   } else {
@@ -859,29 +871,51 @@ function sessionCard(s) {
   const isPending   = s.status === 'pending';
   const isCompleted = s.status === 'completed';
   const isCancelled = s.status === 'cancelled';
-  const unpaid = s.paymentStatus === 'unpaid' && !s.paymentWaived;
+  const unpaid = (s.paymentStatus === 'unpaid' || s.paymentStatus === 'unpaid') && !s.paymentWaived && s.feeAmount > 0;
 
   let statusBadge, statusLabel;
-  if (isPending)   { statusBadge = 'b-pending';   statusLabel = '⏳ Awaiting Approval'; }
-  else if (isCompleted) { statusBadge = 'b-completed'; statusLabel = 'Completed'; }
+  if (isPending)        { statusBadge = 'b-pending';   statusLabel = '⏳ Awaiting Approval'; }
+  else if (isCompleted) { statusBadge = 'b-completed'; statusLabel = '✓ Completed'; }
   else if (isCancelled) { statusBadge = 'b-sos';       statusLabel = 'Cancelled'; }
-  else if (unpaid)      { statusBadge = 'b-pending';   statusLabel = '⚠ Payment Due'; }
+  else if (s.paymentWaived) { statusBadge = 'b-upcoming'; statusLabel = '✅ Payment Waived'; }
+  else if (unpaid && s.paymentLink) { statusBadge = 'b-pending'; statusLabel = '💳 Payment Due'; }
+  else if (unpaid)      { statusBadge = 'b-pending';   statusLabel = '⚠ Payment Pending'; }
   else                  { statusBadge = 'b-upcoming';  statusLabel = 'Confirmed'; }
 
   // Build action buttons
   const nowTs = Math.floor(Date.now() / 1000);
   const sessionTs = s.scheduledAt || 0;
-  // Session is joinable from 10 min before start until 2 hours after start
   const isJoinable = sessionTs > 0 && nowTs >= (sessionTs - 600) && nowTs <= (sessionTs + 7200);
 
   let actions = '';
+
+  // Payment actions
   if (unpaid && !isCompleted && !isCancelled) {
-    actions += `<button class="act-btn pay" onclick="paySession(${s.id})">💳 Pay ${KV.fmtINR(s.feeAmount || 0)}</button>`;
+    if (s.paymentLink) {
+      // Admin has generated a Razorpay payment link — open it directly
+      actions += `<a class="act-btn pay" href="${s.paymentLink}" target="_blank" rel="noopener">💳 Pay ${KV.fmtINR(s.feeAmount || 0)} →</a>`;
+    } else {
+      // Fall back to creating a Razorpay order inline
+      actions += `<button class="act-btn pay" onclick="paySession(${s.id})">💳 Pay ${KV.fmtINR(s.feeAmount || 0)}</button>`;
+    }
   }
-  if (!unpaid && !isCompleted && !isCancelled && s.videoRoom) {
+
+  // Invoice badge (after payment)
+  if (s.invoiceSent) {
+    actions += `<span style="display:inline-flex;align-items:center;gap:4px;background:#EFF6FF;border:1px solid #BFDBFE;color:#1E40AF;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700;">🧾 Invoice Sent</span>`;
+  }
+
+  // Join / recording actions
+  if (!unpaid && !isCompleted && !isCancelled && !s.paymentWaived === false && s.videoRoom) {
     const name = encodeURIComponent(profileData?.name || userData?.name || 'KinMember');
     if (isJoinable) {
-      // Session is NOW — show a prominent green "Start Session" button
+      actions += `<button class="act-btn start-now" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🟢 Start Session Now</button>`;
+    } else {
+      actions += `<button class="act-btn join" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🎥 Join Session</button>`;
+    }
+  } else if (!unpaid && !isCompleted && !isCancelled && s.videoRoom) {
+    const name = encodeURIComponent(profileData?.name || userData?.name || 'KinMember');
+    if (isJoinable) {
       actions += `<button class="act-btn start-now" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🟢 Start Session Now</button>`;
     } else {
       actions += `<button class="act-btn join" onclick="KV.joinVideoCall('${s.videoRoom}', '${name}')">🎥 Join Session</button>`;

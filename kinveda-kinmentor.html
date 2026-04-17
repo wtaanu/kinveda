@@ -577,6 +577,7 @@ function showPanel(name, el) {
   document.getElementById('topbarTitle').textContent=titles[name]||'Dashboard';
   if (name === 'earnings') loadRevenue();
   if (name === 'profile' || name === 'fees') loadProfile();
+  if (name === 'availability') { initAvailGrid(); populateCopyMonthSelect(); loadAvailability(); }
   // Auto-close sidebar on mobile after navigation
   if (window.innerWidth <= 768) closeMobSidebar();
 }

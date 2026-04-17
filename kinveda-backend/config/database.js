@@ -429,7 +429,13 @@ function initializeSchema() {
     "ALTER TABLE payouts ADD COLUMN week_label TEXT",
     // Mentor package definition
     "ALTER TABLE kinmentor_profiles ADD COLUMN package_sessions_per_month INTEGER DEFAULT 8",
-    "ALTER TABLE kinmentor_profiles ADD COLUMN package_mins_per_session INTEGER DEFAULT 50"
+    "ALTER TABLE kinmentor_profiles ADD COLUMN package_mins_per_session INTEGER DEFAULT 50",
+    // Session payment link & invoice tracking
+    "ALTER TABLE booking_sessions ADD COLUMN payment_link TEXT",
+    "ALTER TABLE booking_sessions ADD COLUMN payment_link_id TEXT",
+    "ALTER TABLE booking_sessions ADD COLUMN payment_link_expires_at INTEGER",
+    "ALTER TABLE booking_sessions ADD COLUMN invoice_sent INTEGER DEFAULT 0",
+    "ALTER TABLE booking_sessions ADD COLUMN session_notes_enc TEXT"
   ];
   for (const sql of migrations) {
     try { database.exec(sql); } catch (e) { /* column already exists — skip */ }

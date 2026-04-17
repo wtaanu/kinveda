@@ -115,9 +115,9 @@ async function sendSOSAlert(sosEvent, userName) {
 }
 
 async function sendSessionConfirmation(toEmail, memberName, mentorName, scheduledAt, amount) {
-  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
-  });
+  const sessionDate = scheduledAt
+    ? new Date(scheduledAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
+    : 'To be confirmed';
   await getTransporter().sendMail({
     from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
     to: toEmail,
@@ -150,19 +150,20 @@ async function sendPasswordReset(toEmail, resetUrl) {
 
 // ─── Session Scheduled by Admin (notify KinMember) ───────────────────────────
 async function sendSessionScheduledEmail(toEmail, memberName, mentorName, scheduledAt, durationMins) {
-  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
-  });
+  const sessionDate = scheduledAt
+    ? new Date(scheduledAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
+    : 'To be confirmed';
+  const durLabel = durationMins ? `${durationMins} minutes` : '—';
   await getTransporter().sendMail({
     from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
     to: toEmail,
-    subject: `📅 Your Session Has Been Scheduled — ${sessionDate}`,
+    subject: scheduledAt ? `📅 Your Session Has Been Scheduled — ${sessionDate}` : '📅 Your KinVeda Session Has Been Scheduled',
     html: wrapHtml('Session Scheduled for You', `
-      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>Hello <strong>${memberName || 'there'}</strong>,</p>
       <p>Great news! A session has been scheduled for you with your KinMentor.</p>
-      <div class="field"><strong>KinMentor</strong>${mentorName}</div>
+      <div class="field"><strong>KinMentor</strong>${mentorName || '—'}</div>
       <div class="field"><strong>Date & Time (IST)</strong>${sessionDate}</div>
-      <div class="field"><strong>Duration</strong>${durationMins} minutes</div>
+      <div class="field"><strong>Duration</strong>${durLabel}</div>
       <p>Please log in to your dashboard to confirm payment and get your session join link.</p>
       <a href="${process.env.FRONTEND_URL}/kinveda-kinmember.html" class="btn">View My Sessions →</a>
       <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">All sessions are encrypted and private. 🔒</p>
@@ -172,9 +173,9 @@ async function sendSessionScheduledEmail(toEmail, memberName, mentorName, schedu
 
 // ─── Upcoming Session Reminder (sent at scheduled time − 15 min) ─────────────
 async function sendSessionReminderEmail(toEmail, recipientName, otherPartyName, scheduledAt, videoRoom, role) {
-  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
-  });
+  const sessionDate = scheduledAt
+    ? new Date(scheduledAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
+    : 'Shortly';
   const dashboardUrl = role === 'kinmentor'
     ? `${process.env.FRONTEND_URL}/kinveda-kinmentor.html`
     : `${process.env.FRONTEND_URL}/kinveda-kinmember.html`;
@@ -256,15 +257,16 @@ async function sendMentorPayoutInvoice(toEmail, mentorName, grossAmount, platfor
 
 // ─── Session Request Received (member requested a session) ───────────────────
 async function sendSessionRequestedEmail(adminEmail, memberName, mentorName, durationMins, message) {
+  const durLabel = durationMins ? `${durationMins} minutes` : '—';
   await getTransporter().sendMail({
     from: `"KinVeda Admin" <${process.env.SMTP_USER}>`,
     to: adminEmail,
-    subject: `📋 New Session Request — ${memberName} → ${mentorName}`,
+    subject: `📋 New Session Request — ${memberName || 'KinMember'} → ${mentorName || 'KinMentor'}`,
     html: wrapHtml('New Session Request', `
       <p>A KinMember has requested a session. Please log in to approve it with a date and time.</p>
-      <div class="field"><strong>KinMember</strong>${memberName}</div>
-      <div class="field"><strong>Requested KinMentor</strong>${mentorName}</div>
-      <div class="field"><strong>Duration Requested</strong>${durationMins} minutes</div>
+      <div class="field"><strong>KinMember</strong>${memberName || '—'}</div>
+      <div class="field"><strong>Requested KinMentor</strong>${mentorName || '—'}</div>
+      ${durationMins ? `<div class="field"><strong>Duration Requested</strong>${durLabel}</div>` : ''}
       ${message ? `<div class="field"><strong>Member's Note</strong>${message}</div>` : ''}
       <a href="${process.env.FRONTEND_URL}/kinveda-admin.html" class="btn">Review & Approve →</a>
     `)
@@ -273,9 +275,10 @@ async function sendSessionRequestedEmail(adminEmail, memberName, mentorName, dur
 
 // ─── Session Approved — sent to BOTH member and mentor ───────────────────────
 async function sendSessionApprovedEmail(toEmail, recipientName, otherPartyName, scheduledAt, durationMins, role) {
-  const sessionDate = new Date(scheduledAt * 1000).toLocaleString('en-IN', {
-    timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short'
-  });
+  const sessionDate = scheduledAt
+    ? new Date(scheduledAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
+    : 'To be confirmed';
+  const durLabel = durationMins ? `${durationMins} minutes` : '—';
   const isMember = role === 'kinmember';
   const dashboardUrl = isMember
     ? `${process.env.FRONTEND_URL}/kinveda-kinmember.html`
@@ -284,19 +287,79 @@ async function sendSessionApprovedEmail(toEmail, recipientName, otherPartyName, 
   await getTransporter().sendMail({
     from: `"KinVeda Sessions" <${process.env.SMTP_USER}>`,
     to: toEmail,
-    subject: `✅ Session Approved — ${sessionDate}`,
+    subject: scheduledAt ? `✅ Session Approved — ${sessionDate}` : '✅ Your KinVeda Session Has Been Approved',
     html: wrapHtml('Your Session is Confirmed!', `
-      <p>Hello <strong>${recipientName}</strong>,</p>
+      <p>Hello <strong>${recipientName || 'there'}</strong>,</p>
       <p>Your KinVeda session has been <strong>approved and confirmed</strong>.</p>
-      <div class="field"><strong>${isMember ? 'Your KinMentor' : 'KinMember'}</strong>${otherPartyName}</div>
-      <div class="field"><strong>Date & Time (IST)</strong>${sessionDate}</div>
-      <div class="field"><strong>Duration</strong>${durationMins} minutes</div>
+      <div class="field"><strong>${isMember ? 'Your KinMentor' : 'KinMember'}</strong>${otherPartyName || '—'}</div>
+      ${scheduledAt ? `<div class="field"><strong>Date & Time (IST)</strong>${sessionDate}</div>` : ''}
+      ${durationMins ? `<div class="field"><strong>Duration</strong>${durLabel}</div>` : ''}
       <p>${isMember
         ? 'Log in to your dashboard to see the session details and join the live call when it starts.'
         : 'Log in to your dashboard to start the session at the scheduled time.'
       }</p>
       <a href="${dashboardUrl}" class="btn">${isMember ? 'View My Sessions →' : 'Go to Dashboard →'}</a>
       <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">All sessions are encrypted and private. 🔒</p>
+    `)
+  });
+}
+
+// ─── Session Payment Link (sent to KinMember after admin approves) ────────────
+async function sendSessionPaymentLinkEmail(toEmail, memberName, mentorName, amountInr, paymentLink, expiresAt) {
+  const expiryStr = expiresAt
+    ? new Date(expiresAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' })
+    : '24 hours from now';
+  const isWaived = amountInr === 0;
+  await getTransporter().sendMail({
+    from: `"KinVeda Payments" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: isWaived
+      ? `✅ Your KinVeda session payment has been waived`
+      : `💳 Pay for your KinVeda session — ₹${amountInr}`,
+    html: wrapHtml('Session Payment', isWaived ? `
+      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>Great news! The payment for your upcoming session with <strong>${mentorName}</strong> has been <strong>waived off</strong> by your care team.</p>
+      <p>Simply log in to your dashboard to view your session details and join when it's time.</p>
+      <a href="${process.env.FRONTEND_URL}/kinveda-kinmember.html" class="btn">View My Sessions →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">All sessions are encrypted and private. 🔒</p>
+    ` : `
+      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>Your session with <strong>${mentorName}</strong> has been scheduled! Please complete the payment to confirm your slot.</p>
+      <div class="field"><strong>Amount to Pay</strong>₹${amountInr}</div>
+      <div class="field"><strong>KinMentor</strong>${mentorName}</div>
+      <div class="field" style="background:#FEF9C3;"><strong>⏳ Payment Link Valid Until</strong>${expiryStr} IST</div>
+      <p>Click the button below to complete your payment securely via Razorpay:</p>
+      <a href="${paymentLink}" class="btn">Pay ₹${amountInr} Now →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">You can also pay from your KinVeda dashboard under "My Sessions". If the link expires, please contact us or log in to your dashboard for a fresh link.</p>
+    `)
+  });
+}
+
+// ─── Session Invoice (sent after payment confirmed — online or offline) ───────
+async function sendSessionInvoiceEmail(toEmail, memberName, mentorName, amountInr, scheduledAt, durationMins, invoiceId, paymentMethod) {
+  const paidAt = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' });
+  const sessionDate = scheduledAt
+    ? new Date(scheduledAt * 1000).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'full', timeStyle: 'short' })
+    : 'To be confirmed';
+  const methodLabel = paymentMethod === 'offline' ? 'Offline / Cash / Bank Transfer' : 'Online (Razorpay)';
+  await getTransporter().sendMail({
+    from: `"KinVeda Finance" <${process.env.SMTP_USER}>`,
+    to: toEmail,
+    subject: `🧾 Payment Receipt — KinVeda Session with ${mentorName}`,
+    html: wrapHtml('Session Payment Receipt', `
+      <p>Hello <strong>${memberName}</strong>,</p>
+      <p>Thank you! Your payment for the session with <strong>${mentorName}</strong> has been received and confirmed.</p>
+      <div class="field" style="background:#D1FAE5;"><strong>✅ Payment Status</strong>Confirmed</div>
+      <div class="field"><strong>Invoice / Receipt ID</strong>${invoiceId || 'KV-' + Date.now()}</div>
+      <div class="field"><strong>Amount Paid</strong>₹${amountInr || 0}</div>
+      <div class="field"><strong>Payment Method</strong>${methodLabel}</div>
+      <div class="field"><strong>Session Date & Time</strong>${sessionDate} IST</div>
+      ${durationMins ? `<div class="field"><strong>Duration</strong>${durationMins} minutes</div>` : ''}
+      <div class="field"><strong>KinMentor</strong>${mentorName || '—'}</div>
+      <div class="field"><strong>Payment Recorded On</strong>${paidAt} IST</div>
+      <p>Please save this email as your official payment receipt.</p>
+      <a href="${process.env.FRONTEND_URL}/kinveda-kinmember.html" class="btn">View My Sessions →</a>
+      <p style="margin-top:16px;font-size:12px;color:#6B7F7C;">KinVeda · Confidential & Encrypted · All sessions are private.</p>
     `)
   });
 }
@@ -313,5 +376,7 @@ module.exports = {
   sendMentorPayoutInvoice,
   sendPasswordReset,
   sendSessionRequestedEmail,
-  sendSessionApprovedEmail
+  sendSessionApprovedEmail,
+  sendSessionPaymentLinkEmail,
+  sendSessionInvoiceEmail
 };
