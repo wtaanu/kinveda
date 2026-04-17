@@ -275,30 +275,70 @@ router.get('/members', requireAuth, requireKinMentor, (req, res) => {
 router.get('/sessions', requireAuth, requireKinMentor, (req, res) => {
   const db = getDb();
   const sessions = db.prepare(`
-    SELECT bs.*, u.name_enc AS member_name_enc,
-           kp.family_structure, kp.child_status
+    SELECT bs.id, bs.member_id, bs.scheduled_at, bs.duration_mins, bs.status,
+           bs.payment_status, bs.amount, bs.video_room, bs.notes_enc,
+           u.name_enc AS member_name_enc, u.email AS member_email,
+           kp.family_structure, kp.child_status,
+           vs.recording_url
     FROM booking_sessions bs
     JOIN users u ON u.id = bs.member_id
-    JOIN kinmember_profiles kp ON kp.user_id = bs.member_id
+    LEFT JOIN kinmember_profiles kp ON kp.user_id = bs.member_id
+    LEFT JOIN video_sessions vs ON vs.session_id = bs.id
     WHERE bs.mentor_id = ?
     ORDER BY bs.scheduled_at DESC
-    LIMIT 50
+    LIMIT 100
   `).all(req.user.id);
 
   return res.json({
     success: true,
     sessions: sessions.map(s => ({
       id: s.id,
+      memberId: s.member_id,
       memberName: decrypt(s.member_name_enc),
+      memberEmail: s.member_email,
       familyStructure: s.family_structure,
       childStatus: s.child_status,
       scheduledAt: s.scheduled_at,
       durationMins: s.duration_mins,
       status: s.status,
       paymentStatus: s.payment_status,
-      amount: s.amount
+      amount: s.amount,
+      videoRoom: s.video_room,
+      recordingUrl: s.recording_url,
+      caseNote: s.notes_enc ? decrypt(s.notes_enc) : null
     }))
   });
+});
+
+// ─── PATCH: Mark Session Completed ───────────────────────────────────────────
+router.patch('/sessions/:id/complete', requireAuth, requireKinMentor, (req, res) => {
+  const db = getDb();
+  const sessionId = parseInt(req.params.id);
+  const session = db.prepare('SELECT * FROM booking_sessions WHERE id = ? AND mentor_id = ?').get(sessionId, req.user.id);
+  if (!session) return res.status(404).json({ success: false, message: 'Session not found.' });
+  if (session.status === 'completed') return res.status(400).json({ success: false, message: 'Already marked as completed.' });
+  if (session.status === 'cancelled') return res.status(400).json({ success: false, message: 'Cannot complete a cancelled session.' });
+
+  const now = Math.floor(Date.now() / 1000);
+  db.prepare(`UPDATE booking_sessions SET status = 'completed', updated_at = ? WHERE id = ?`).run(now, sessionId);
+
+  // Increment mentor total_sessions count
+  db.prepare(`UPDATE kinmentor_profiles SET total_sessions = total_sessions + 1, updated_at = ? WHERE user_id = ?`).run(now, req.user.id);
+
+  return res.json({ success: true, message: 'Session marked as completed.' });
+});
+
+// ─── PUT: Save Case Note for a session ───────────────────────────────────────
+router.put('/sessions/:id/note', requireAuth, requireKinMentor, (req, res) => {
+  const db = getDb();
+  const sessionId = parseInt(req.params.id);
+  const { note } = req.body;
+  if (note === undefined) return res.status(400).json({ success: false, message: 'note field required' });
+  const session = db.prepare('SELECT id FROM booking_sessions WHERE id = ? AND mentor_id = ?').get(sessionId, req.user.id);
+  if (!session) return res.status(404).json({ success: false, message: 'Session not found.' });
+  db.prepare('UPDATE booking_sessions SET notes_enc = ?, updated_at = unixepoch() WHERE id = ?')
+    .run(note.trim() ? encrypt(note.trim()) : null, sessionId);
+  return res.json({ success: true, message: 'Case note saved.' });
 });
 
 // ─── GET / POST: Case Notes for a member ────────────────────────────────────
@@ -327,6 +367,33 @@ router.put('/notes/:sessionId', requireAuth, requireKinMentor,
     return res.json({ success: true, message: 'Notes saved.' });
   }
 );
+
+// ─── GET: All Homework Assigned by this Mentor ───────────────────────────────
+router.get('/homework/assigned', requireAuth, requireKinMentor, (req, res) => {
+  const db = getDb();
+  const rows = db.prepare(`
+    SELECT h.id, h.member_id, h.session_id, h.task_enc, h.due_date, h.is_completed, h.created_at,
+           u.name_enc AS member_name_enc
+    FROM homework h
+    JOIN users u ON u.id = h.member_id
+    WHERE h.mentor_id = ?
+    ORDER BY h.created_at DESC
+    LIMIT 100
+  `).all(req.user.id);
+  res.json({
+    success: true,
+    homework: rows.map(h => ({
+      id: h.id,
+      memberId: h.member_id,
+      memberName: decrypt(h.member_name_enc),
+      sessionId: h.session_id,
+      task: decrypt(h.task_enc),
+      dueDate: h.due_date,
+      isCompleted: !!h.is_completed,
+      createdAt: h.created_at
+    }))
+  });
+});
 
 // ─── POST: Add Homework for a Member ─────────────────────────────────────────
 router.post('/homework', requireAuth, requireKinMentor,
@@ -403,11 +470,21 @@ router.get('/reviews', requireAuth, requireKinMentor, (req, res) => {
 router.get('/availability', requireAuth, requireKinMentor, (req, res) => {
   const db = getDb();
   const slots = db.prepare(`
-    SELECT * FROM mentor_availability
+    SELECT id, day_of_week, start_time, end_time, label, is_active
+    FROM mentor_availability
     WHERE mentor_id = ? AND is_active = 1
     ORDER BY day_of_week, start_time
   `).all(req.user.id);
-  res.json({ success: true, slots });
+  res.json({
+    success: true,
+    slots: slots.map(s => ({
+      id: s.id,
+      dayOfWeek: s.day_of_week,
+      startTime: s.start_time,
+      endTime: s.end_time,
+      label: s.label || ''
+    }))
+  });
 });
 
 // POST /api/kinmentor/availability — add a slot
@@ -533,6 +610,55 @@ router.patch('/sessions/:sessionId/recording', requireAuth, requireKinMentor, (r
   `).run(recordingUrl, req.user.id, req.params.sessionId);
 
   res.json({ success: true, message: 'Recording link saved. KinMember can now view the recording.' });
+});
+
+// ─── GET /api/kinmentor/messages/recent ───────────────────────────────────────
+// Returns the latest message per member conversation (for overview panel)
+router.get('/messages/recent', requireAuth, requireKinMentor, (req, res) => {
+  const db = getDb();
+  const mentorId = req.user.id;
+
+  // Get all members assigned to this mentor
+  const members = db.prepare(`
+    SELECT u.id, u.name_enc
+    FROM users u
+    JOIN kinmember_profiles kmp ON kmp.user_id = u.id
+    WHERE kmp.assigned_mentor_id = ? AND u.role = 'kinmember' AND u.is_active = 1
+  `).all(mentorId);
+
+  const conversations = [];
+  for (const member of members) {
+    // Get latest message in this conversation
+    const lastMsg = db.prepare(`
+      SELECT cm.id, cm.sender_id, cm.message_enc, cm.is_read, cm.created_at
+      FROM chat_messages cm
+      WHERE (cm.sender_id = ? AND cm.receiver_id = ?)
+         OR (cm.sender_id = ? AND cm.receiver_id = ?)
+      ORDER BY cm.created_at DESC LIMIT 1
+    `).get(member.id, mentorId, mentorId, member.id);
+
+    // Count unread messages from this member
+    const unreadCount = db.prepare(`
+      SELECT COUNT(*) AS cnt FROM chat_messages
+      WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
+    `).get(member.id, mentorId);
+
+    if (lastMsg) {
+      conversations.push({
+        memberId: member.id,
+        memberName: decrypt(member.name_enc),
+        lastMessage: decrypt(lastMsg.message_enc),
+        lastMessageAt: lastMsg.created_at,
+        isMine: lastMsg.sender_id === mentorId,
+        unreadCount: unreadCount?.cnt || 0
+      });
+    }
+  }
+
+  // Sort by most recent message first
+  conversations.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+
+  res.json({ success: true, conversations });
 });
 
 // ─── GET /api/kinmentor/messages/:memberId ─────────────────────────────────────
