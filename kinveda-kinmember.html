@@ -656,6 +656,8 @@ let resourcesData = [];
 let billingData = { payments: [], subscriptions: [] };
 let activeSubscription = null;
 let selectedRating = 0;
+let memberChatPollInterval = null;
+let memberChatLastMsgTs = 0;
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -716,7 +718,7 @@ function showPanel(name, linkEl) {
     package: 'My Package', story: 'Share My Story'
   };
   document.getElementById('topbarTitle').textContent = titles[name] || 'Dashboard';
-  if (name === 'chat') loadMessages();
+  if (name === 'chat') { loadMessages(); startMemberChatPolling(); } else stopMemberChatPolling();
   if (name === 'payments') renderBilling();
   if (name === 'package') renderPackage();
   if (name === 'story') loadMyTestimonials();
@@ -1215,30 +1217,76 @@ async function cancelSub() {
   }
 }
 
+function startMemberChatPolling() {
+  stopMemberChatPolling();
+  memberChatPollInterval = setInterval(async () => {
+    if (!profileData?.assignedMentorId) return;
+    const res = await KV.get(`/api/kinmember/messages/${profileData.assignedMentorId}?since=${memberChatLastMsgTs}`);
+    if (!res) return;
+    const data = await res.json().catch(() => null);
+    if (!data?.success || !data.messages?.length) return;
+    const newMsgs = data.messages.filter(m => m.createdAt > memberChatLastMsgTs);
+    if (!newMsgs.length) return;
+    appendMemberMessages(newMsgs);
+  }, 4000);
+}
+
+function stopMemberChatPolling() {
+  if (memberChatPollInterval) { clearInterval(memberChatPollInterval); memberChatPollInterval = null; }
+}
+
+function appendMemberMessages(msgs) {
+  const el = document.getElementById('chatMsgs');
+  if (!el) return;
+  const placeholder = el.querySelector('.loading-state');
+  if (placeholder) placeholder.remove();
+  const wasAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 50;
+  msgs.forEach(m => {
+    messagesData.push(m);
+    if (m.createdAt > memberChatLastMsgTs) memberChatLastMsgTs = m.createdAt;
+    const div = document.createElement('div');
+    div.className = `msg ${m.isMine ? 'mine' : 'theirs'}`;
+    div.innerHTML = `${escapeHtml(m.message)}<div class="msg-meta">${m.isMine ? 'You' : 'KinMentor'} · ${KV.fmtDateTime ? KV.fmtDateTime(m.createdAt) : KV.fmtDate(m.createdAt)}</div>`;
+    el.appendChild(div);
+  });
+  if (wasAtBottom) el.scrollTop = el.scrollHeight;
+  // Update header timestamp
+  const last = msgs[msgs.length - 1];
+  const lastActiveEl = document.getElementById('chatLastActive');
+  if (last && lastActiveEl) lastActiveEl.textContent = `Last message: ${KV.fmtDateTime ? KV.fmtDateTime(last.createdAt) : KV.fmtDate(last.createdAt)}`;
+}
+
 async function loadMessages() {
   const el = document.getElementById('chatMsgs');
   const nameEl = document.getElementById('chatMentorName');
   const lastActiveEl = document.getElementById('chatLastActive');
 
   if (!profileData?.assignedMentorId) {
-    el.innerHTML = '<div class="loading-state" style="padding:24px;text-align:center;">You will be able to message your KinMentor once one is assigned by the admin team.</div>';
+    if (el) el.innerHTML = '<div class="loading-state" style="padding:24px;text-align:center;">You will be able to message your KinMentor once one is assigned by the admin team.</div>';
     return;
   }
-  nameEl.textContent = profileData.assignedMentorName || 'My KinMentor';
+  if (nameEl) nameEl.textContent = profileData.assignedMentorName || 'My KinMentor';
+  if (el) el.innerHTML = '<div class="loading-state">Loading messages...</div>';
 
-  el.innerHTML = '<div class="loading-state">Loading messages...</div>';
   const res = await KV.get(`/api/kinmember/messages/${profileData.assignedMentorId}`);
-  if (!res) { el.innerHTML = '<div class="loading-state">Could not load messages.</div>'; return; }
-  const data = await res.json();
-  if (!data.success) { el.innerHTML = '<div class="loading-state">Could not load messages.</div>'; return; }
-  messagesData = data.messages;
+  if (!res) { if (el) el.innerHTML = '<div class="loading-state">Could not load messages.</div>'; return; }
+  const data = await res.json().catch(() => null);
+  if (!data?.success) { if (el) el.innerHTML = '<div class="loading-state">Could not load messages.</div>'; return; }
+
+  messagesData = data.messages || [];
+  memberChatLastMsgTs = messagesData.length ? Math.max(...messagesData.map(m => m.createdAt)) : 0;
+
   if (!messagesData.length) {
-    el.innerHTML = '<div class="loading-state" style="padding:24px;">No messages yet. Start the conversation! 👋</div>';
+    if (el) el.innerHTML = '<div class="loading-state" style="padding:24px;">No messages yet. Say hello! 👋</div>';
     if (lastActiveEl) lastActiveEl.textContent = 'Messages are private and encrypted';
     return;
   }
-  el.innerHTML = messagesData.map(m => `<div class="msg ${m.isMine?'mine':'theirs'}">${escapeHtml(m.message)}<div class="msg-meta">${m.isMine?'You':'KinMentor'} · ${KV.fmtDateTime ? KV.fmtDateTime(m.createdAt) : KV.fmtDate(m.createdAt)}</div></div>`).join('');
-  el.scrollTop = el.scrollHeight;
+  if (el) {
+    el.innerHTML = messagesData.map(m =>
+      `<div class="msg ${m.isMine?'mine':'theirs'}">${escapeHtml(m.message)}<div class="msg-meta">${m.isMine?'You':'KinMentor'} · ${KV.fmtDateTime ? KV.fmtDateTime(m.createdAt) : KV.fmtDate(m.createdAt)}</div></div>`
+    ).join('');
+    el.scrollTop = el.scrollHeight;
+  }
   const last = messagesData[messagesData.length - 1];
   if (last && lastActiveEl) lastActiveEl.textContent = `Last message: ${KV.fmtDateTime ? KV.fmtDateTime(last.createdAt) : KV.fmtDate(last.createdAt)}`;
 }
@@ -1249,17 +1297,25 @@ async function sendPrivateMsg() {
   const msg = input.value.trim();
   if (!msg) return;
   input.value = '';
+  // Optimistic: show the message immediately
+  appendMemberMessages([{ message: msg, isMine: true, createdAt: Math.floor(Date.now() / 1000) }]);
+
   const res = await KV.post(`/api/kinmember/messages/${profileData.assignedMentorId}`, { message: msg });
-  if (res?.ok) {
-    loadMessages();
-  } else if (res) {
+  if (!res) {
+    KV.showToast('Could not reach server. Please try again.', 'error');
+    input.value = msg;
+  } else if (!res.ok) {
     const d = await res.json().catch(() => ({}));
     KV.showToast(d.message || 'Could not send message.', 'error');
     input.value = msg;
-  } else {
-    KV.showToast('Could not reach server. Please try again.', 'error');
-    input.value = msg;
   }
+  // Sync from server after a brief delay to get real timestamp
+  setTimeout(async () => {
+    const r = await KV.get(`/api/kinmember/messages/${profileData.assignedMentorId}?since=${memberChatLastMsgTs - 2}`);
+    if (!r) return;
+    const d = await r.json().catch(() => null);
+    if (d?.success && d.messages?.length) appendMemberMessages(d.messages.filter(m => m.createdAt > memberChatLastMsgTs));
+  }, 500);
 }
 
 function saveSafetyPlan() {

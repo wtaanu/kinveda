@@ -606,6 +606,7 @@ function showPanel(name, el) {
   if (el) el.classList.add('active');
   const titles={dashboard:'KinMentor Dashboard',members:'My KinMembers',sessions:'Session Queue',notes:'Case Notes',chat:'Messages',homework:'Assign Homework',blog:'Blog Posts',reviews:'Reviews',profile:'Profile Editor',fees:'Session Fees',earnings:'Revenue Dashboard',availability:'My Availability'};
   document.getElementById('topbarTitle').textContent=titles[name]||'Dashboard';
+  if (name !== 'chat') stopChatPolling(); // stop chat polling when leaving chat panel
   if (name === 'earnings') loadRevenue();
   if (name === 'profile' || name === 'fees') loadProfile();
   if (name === 'availability') { initAvailGrid(); populateCopyMonthSelect(); loadAvailability(); }
@@ -938,84 +939,193 @@ async function loadNotes() {
 }
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
-async function loadRecentConversations() {
-  const listEl = document.getElementById('conversationsList');
-  listEl.innerHTML = '<div class="loading-state" style="padding:16px;">Loading...</div>';
+let chatPollInterval = null;    // setInterval handle for message polling
+let chatLastMsgTs = 0;          // last seen message timestamp (for polling since=)
+let currentActiveMemberId = ''; // memberId currently open in chat window
+let allMsgData = [];            // full message list for current conversation
+
+function escMh(s){ return s?(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
+
+function startChatPolling() {
+  stopChatPolling();
+  chatPollInterval = setInterval(async () => {
+    // Poll conversations list every 8 seconds to update unread counts
+    await silentRefreshConversations();
+    // Poll open conversation every 4 seconds for new messages
+    if (currentActiveMemberId) await pollNewMessages();
+  }, 4000);
+}
+
+function stopChatPolling() {
+  if (chatPollInterval) { clearInterval(chatPollInterval); chatPollInterval = null; }
+}
+
+async function silentRefreshConversations() {
+  // Refresh without showing loading spinner (keeps UX stable)
   const res = await KV.get('/api/kinmentor/messages/recent');
-  if (!res) { listEl.innerHTML = '<div class="loading-state" style="padding:16px;color:var(--muted);">Could not load.</div>'; return; }
-  const data = await res.json();
-  if (!data.success || !data.conversations?.length) {
-    listEl.innerHTML = '<div class="loading-state" style="padding:16px;">No conversations yet.<br><small>Messages will appear here once you start chatting with a KinMember.</small></div>';
+  if (!res) return;
+  const data = await res.json().catch(() => null);
+  if (!data?.success) return;
+  renderConversationsList(data.conversations || []);
+}
+
+function renderConversationsList(conversations) {
+  const listEl = document.getElementById('conversationsList');
+  if (!listEl) return;
+  if (!conversations.length) {
+    listEl.innerHTML = '<div class="loading-state" style="padding:16px;font-size:12px;">No KinMembers linked yet.<br>Sessions and assignments appear here.</div>';
     return;
   }
-  listEl.innerHTML = data.conversations.map(c => {
-    const preview = escMh(c.lastMessage || '').substring(0, 60) + (c.lastMessage?.length > 60 ? '…' : '');
-    const time = KV.fmtDate ? KV.fmtDate(c.lastMessageAt) : '';
-    const unread = c.unreadCount > 0 ? `<span style="background:var(--primary);color:white;border-radius:99px;font-size:10px;font-weight:700;padding:2px 7px;min-width:18px;text-align:center;">${c.unreadCount}</span>` : '';
-    const prefix = c.isMine ? '<span style="color:var(--muted);font-size:11px;">You: </span>' : '';
-    return `<div onclick="openConversation(${c.memberId}, '${escMh(c.memberName)}')" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;" onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background=''">
+  listEl.innerHTML = conversations.map(c => {
+    const isActive = String(c.memberId) === String(currentActiveMemberId);
+    const preview = c.lastMessage ? escMh(c.lastMessage).substring(0, 55) + (c.lastMessage.length > 55 ? '…' : '') : '<em style="color:var(--muted)">No messages yet</em>';
+    const time = c.lastMessageAt ? KV.fmtDate(c.lastMessageAt) : '';
+    const unread = c.unreadCount > 0 ? `<span style="background:#E8734A;color:white;border-radius:99px;font-size:10px;font-weight:700;padding:2px 7px;flex-shrink:0;">${c.unreadCount}</span>` : '';
+    const prefix = c.isMine && c.lastMessage ? '<span style="color:var(--muted);font-size:11px;">You: </span>' : '';
+    const bg = isActive ? '#f0ebff' : '';
+    return `<div data-member-id="${c.memberId}" onclick="openConversation(${c.memberId}, '${escMh(c.memberName)}')" style="padding:12px 16px;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s;background:${bg};" onmouseenter="if(!this.classList.contains('active-conv'))this.style.background='var(--bg)'" onmouseleave="if(String(${c.memberId})!==String(currentActiveMemberId))this.style.background='${bg}'">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:3px;">
-        <strong style="font-size:13px;">${escMh(c.memberName)}</strong>
-        <div style="display:flex;align-items:center;gap:6px;">${unread}<span style="font-size:11px;color:var(--muted);">${time}</span></div>
+        <strong style="font-size:13px;${c.unreadCount > 0 ? 'color:var(--primary)' : ''}">${escMh(c.memberName)}</strong>
+        <div style="display:flex;align-items:center;gap:6px;">${unread}<span style="font-size:10px;color:var(--muted);">${time}</span></div>
       </div>
-      <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${prefix}${preview || '<em>No messages</em>'}</div>
+      <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${prefix}${preview}</div>
     </div>`;
   }).join('');
 }
 
-function openConversation(memberId, memberName) {
-  // Highlight the selected conversation row
-  document.querySelectorAll('#conversationsList > div').forEach(d => d.style.background = '');
-  event.currentTarget.style.background = '#f0ebff';
-
-  // Update the select dropdown and header label
-  const sel = document.getElementById('chatMemberSel');
-  sel.value = memberId;
-  document.getElementById('chatWithLabel').textContent = `💬 ${memberName}`;
-
-  // Load the messages
-  currentChatMemberId = String(memberId);
-  loadMentorMessages(memberId);
+async function loadRecentConversations() {
+  const listEl = document.getElementById('conversationsList');
+  if (listEl) listEl.innerHTML = '<div class="loading-state" style="padding:16px;">Loading...</div>';
+  const res = await KV.get('/api/kinmentor/messages/recent');
+  if (!res) { if (listEl) listEl.innerHTML = '<div class="loading-state" style="padding:16px;color:var(--muted);">Could not load.</div>'; return; }
+  const data = await res.json().catch(() => null);
+  if (!data?.success) { if (listEl) listEl.innerHTML = '<div class="loading-state" style="padding:16px;color:var(--muted);">Could not load.</div>'; return; }
+  renderConversationsList(data.conversations || []);
+  startChatPolling();
 }
 
-async function loadMentorMessages(overrideMemberId) {
-  const memberId = overrideMemberId || document.getElementById('chatMemberSel').value;
-  currentChatMemberId = memberId ? String(memberId) : '';
-  const el = document.getElementById('chatMsgs');
-  if (!currentChatMemberId) { el.innerHTML='<div class="loading-state">Select a KinMember to view messages.</div>'; return; }
+function openConversation(memberId, memberName) {
+  currentActiveMemberId = String(memberId);
+  chatLastMsgTs = 0; // reset so we load all messages fresh
+  allMsgData = [];
 
-  // Update header label from select if not set via openConversation
+  // Highlight selected row
+  document.querySelectorAll('#conversationsList [data-member-id]').forEach(d => {
+    d.style.background = String(d.dataset.memberId) === String(memberId) ? '#f0ebff' : '';
+  });
+
+  // Update select dropdown and header
+  const sel = document.getElementById('chatMemberSel');
+  if (sel) sel.value = memberId;
+  const lbl = document.getElementById('chatWithLabel');
+  if (lbl) lbl.textContent = `💬 ${memberName}`;
+
+  loadMentorMessages(memberId, true);
+}
+
+async function pollNewMessages() {
+  if (!currentActiveMemberId) return;
+  const res = await KV.get(`/api/kinmentor/messages/${currentActiveMemberId}?since=${chatLastMsgTs}`);
+  if (!res) return;
+  const data = await res.json().catch(() => null);
+  if (!data?.success || !data.messages?.length) return;
+  // Append only truly new messages
+  const newMsgs = data.messages.filter(m => m.createdAt > chatLastMsgTs);
+  if (!newMsgs.length) return;
+  appendMessages(newMsgs);
+  silentRefreshConversations(); // update unread counts
+}
+
+function appendMessages(msgs) {
+  const el = document.getElementById('chatMsgs');
+  if (!el) return;
+  // Remove empty-state placeholder if present
+  const placeholder = el.querySelector('.loading-state');
+  if (placeholder) placeholder.remove();
+
+  const wasAtBottom = el.scrollHeight - el.scrollTop <= el.clientHeight + 50;
+  msgs.forEach(m => {
+    allMsgData.push(m);
+    if (m.createdAt > chatLastMsgTs) chatLastMsgTs = m.createdAt;
+    const div = document.createElement('div');
+    div.className = `msg ${m.isMine ? 'mine' : 'theirs'}`;
+    div.innerHTML = `${escMh(m.message)}<div style="font-size:10px;opacity:.7;margin-top:3px;">${m.isMine ? 'You' : 'KinMember'} · ${KV.fmtDate(m.createdAt)}</div>`;
+    el.appendChild(div);
+  });
+  if (wasAtBottom) el.scrollTop = el.scrollHeight;
+}
+
+async function loadMentorMessages(overrideMemberId, showLoading = true) {
+  const memberId = overrideMemberId || document.getElementById('chatMemberSel').value;
+  currentActiveMemberId = memberId ? String(memberId) : '';
+  const el = document.getElementById('chatMsgs');
+  if (!currentActiveMemberId) {
+    if (el) el.innerHTML = '<div class="loading-state">Select a KinMember to view messages.</div>';
+    return;
+  }
+
+  // Update header label when selected from dropdown (not from openConversation)
   if (!overrideMemberId) {
     const sel = document.getElementById('chatMemberSel');
-    const selText = sel.options[sel.selectedIndex]?.text;
+    const selText = sel?.options[sel.selectedIndex]?.text;
     if (selText && selText !== 'Select KinMember...' && selText !== 'Select...') {
-      document.getElementById('chatWithLabel').textContent = `💬 ${selText}`;
+      const lbl = document.getElementById('chatWithLabel');
+      if (lbl) lbl.textContent = `💬 ${selText}`;
+    }
+    currentActiveMemberId = String(memberId);
+    chatLastMsgTs = 0;
+    allMsgData = [];
+  }
+
+  if (el && showLoading) el.innerHTML = '<div class="loading-state">Loading messages...</div>';
+
+  const res = await KV.get(`/api/kinmentor/messages/${currentActiveMemberId}`);
+  if (!res) {
+    if (el) el.innerHTML = '<div class="loading-state" style="color:var(--muted);">Could not load messages. Check connection.</div>';
+    return;
+  }
+  const data = await res.json().catch(() => null);
+  if (!data?.success) {
+    if (el) el.innerHTML = `<div class="loading-state" style="color:#DC2626;">Error: ${data?.message || 'Could not load messages.'}</div>`;
+    return;
+  }
+
+  allMsgData = data.messages || [];
+  chatLastMsgTs = allMsgData.length ? Math.max(...allMsgData.map(m => m.createdAt)) : 0;
+
+  if (el) {
+    if (!allMsgData.length) {
+      el.innerHTML = '<div class="loading-state">No messages yet. Start the conversation below! 👋</div>';
+    } else {
+      el.innerHTML = allMsgData.map(m =>
+        `<div class="msg ${m.isMine ? 'mine' : 'theirs'}">${escMh(m.message)}<div style="font-size:10px;opacity:.7;margin-top:3px;">${m.isMine ? 'You' : 'KinMember'} · ${KV.fmtDate(m.createdAt)}</div></div>`
+      ).join('');
+      el.scrollTop = el.scrollHeight;
     }
   }
-
-  el.innerHTML = '<div class="loading-state">Loading...</div>';
-  const res = await KV.get(`/api/kinmentor/messages/${currentChatMemberId}`);
-  if (!res) { el.innerHTML='<p style="font-size:13px;color:var(--muted);">Could not load messages.</p>'; return; }
-  const data = await res.json();
-  if (!data.success || !data.messages?.length) {
-    el.innerHTML='<div class="loading-state">No messages yet. Start the conversation below!</div>'; return;
-  }
-  el.innerHTML = data.messages.map(m => `<div class="msg ${m.isMine?'mine':'theirs'}">${escMh(m.message)}<div style="font-size:10px;opacity:.7;margin-top:3px;">${m.isMine?'You':'KinMember'} · ${KV.fmtDate(m.createdAt)}</div></div>`).join('');
-  el.scrollTop = el.scrollHeight;
-  // Refresh the conversations list to clear unread badge
-  loadRecentConversations();
+  silentRefreshConversations();
 }
 
-function escMh(s){ return s?(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'):''; }
-
 async function sendMentorMsg() {
-  if (!currentChatMemberId) { KV.showToast('Select a KinMember first.', 'warning'); return; }
+  if (!currentActiveMemberId) { KV.showToast('Select a KinMember first.', 'warning'); return; }
   const input = document.getElementById('chatInput');
   const msg = input.value.trim();
   if (!msg) return;
   input.value = '';
-  const res = await KV.post(`/api/kinmentor/messages/${currentChatMemberId}`, { message: msg });
-  if (res?.ok) { loadMentorMessages(); loadRecentConversations(); }
+  const res = await KV.post(`/api/kinmentor/messages/${currentActiveMemberId}`, { message: msg });
+  if (res?.ok) {
+    // Immediately show the sent message (optimistic)
+    appendMessages([{ message: msg, isMine: true, createdAt: Math.floor(Date.now() / 1000) }]);
+    // Then sync from server to get the real ID/timestamp
+    setTimeout(() => pollNewMessages(), 300);
+  } else if (res) {
+    const d = await res.json().catch(() => ({}));
+    KV.showToast(d.message || 'Could not send message.', 'error');
+    input.value = msg;
+  } else {
+    KV.showToast('Could not reach server. Please try again.', 'error');
+    input.value = msg;
+  }
 }
 
 // ─── Availability ─────────────────────────────────────────────────────────────

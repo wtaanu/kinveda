@@ -169,33 +169,41 @@ router.get('/sessions', requireAuth, requireKinMember, (req, res) => {
 });
 
 // ─── GET: My Chat Messages ────────────────────────────────────────────────────
+// Optional query param: ?since=UNIX_TIMESTAMP — return only messages newer than this time
 router.get('/messages/:mentorId', requireAuth, requireKinMember, (req, res) => {
   const db = getDb();
-  const msgs = db.prepare(`
-    SELECT cm.id, cm.sender_id, cm.message_enc, cm.is_read, cm.created_at,
-           u.role AS sender_role
-    FROM chat_messages cm
-    JOIN users u ON u.id = cm.sender_id
-    WHERE (cm.sender_id = ? AND cm.receiver_id = ?)
-       OR (cm.sender_id = ? AND cm.receiver_id = ?)
-    ORDER BY cm.created_at ASC
-  `).all(req.user.id, req.params.mentorId, req.params.mentorId, req.user.id);
+  const mentorId = parseInt(req.params.mentorId);
+  const since = req.query.since ? parseInt(req.query.since) : 0;
 
-  // Mark as read
-  db.prepare('UPDATE chat_messages SET is_read = 1 WHERE receiver_id = ? AND sender_id = ?')
-    .run(req.user.id, req.params.mentorId);
+  const msgs = db.prepare(`
+    SELECT cm.id, cm.sender_id, cm.message_enc, cm.is_read, cm.created_at
+    FROM chat_messages cm
+    WHERE ((cm.sender_id = ? AND cm.receiver_id = ?)
+        OR (cm.sender_id = ? AND cm.receiver_id = ?))
+      AND cm.created_at > ?
+    ORDER BY cm.created_at ASC
+    LIMIT 300
+  `).all(req.user.id, mentorId, mentorId, req.user.id, since);
+
+  // Mark messages from mentor as read
+  if (msgs.length > 0) {
+    db.prepare('UPDATE chat_messages SET is_read = 1 WHERE receiver_id = ? AND sender_id = ?')
+      .run(req.user.id, mentorId);
+  }
 
   return res.json({
     success: true,
-    messages: msgs.map(m => ({
-      id: m.id,
-      senderId: m.sender_id,
-      senderRole: m.sender_role,
-      message: decrypt(m.message_enc),
-      isRead: !!m.is_read,
-      createdAt: m.created_at,
-      isMine: m.sender_id === req.user.id
-    }))
+    messages: msgs.map(m => {
+      let message = '';
+      try { message = m.message_enc ? decrypt(m.message_enc) : ''; } catch {}
+      return {
+        id: m.id,
+        message,
+        isRead: !!m.is_read,
+        createdAt: m.created_at,
+        isMine: Number(m.sender_id) === Number(req.user.id)
+      };
+    })
   });
 });
 

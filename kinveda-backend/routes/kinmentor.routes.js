@@ -631,6 +631,9 @@ router.get('/messages/recent', requireAuth, requireKinMentor, (req, res) => {
 
   const conversations = [];
   for (const member of members) {
+    let memberName = '—';
+    try { memberName = member.name_enc ? decrypt(member.name_enc) : '—'; } catch {}
+
     // Get latest message in this conversation
     const lastMsg = db.prepare(`
       SELECT cm.id, cm.sender_id, cm.message_enc, cm.is_read, cm.created_at
@@ -640,36 +643,51 @@ router.get('/messages/recent', requireAuth, requireKinMentor, (req, res) => {
       ORDER BY cm.created_at DESC LIMIT 1
     `).get(member.id, mentorId, mentorId, member.id);
 
-    // Count unread messages from this member
-    const unreadCount = db.prepare(`
+    // Count unread messages from this member to the mentor
+    const unreadRow = db.prepare(`
       SELECT COUNT(*) AS cnt FROM chat_messages
       WHERE sender_id = ? AND receiver_id = ? AND is_read = 0
     `).get(member.id, mentorId);
 
+    // Always include the member (even without messages yet), but show hasMessages flag
+    let lastMessage = null, lastMessageAt = null, isMine = false;
     if (lastMsg) {
-      conversations.push({
-        memberId: member.id,
-        memberName: decrypt(member.name_enc),
-        lastMessage: decrypt(lastMsg.message_enc),
-        lastMessageAt: lastMsg.created_at,
-        isMine: lastMsg.sender_id === mentorId,
-        unreadCount: unreadCount?.cnt || 0
-      });
+      try { lastMessage = lastMsg.message_enc ? decrypt(lastMsg.message_enc) : ''; } catch {}
+      lastMessageAt = lastMsg.created_at;
+      isMine = Number(lastMsg.sender_id) === Number(mentorId);
     }
+
+    conversations.push({
+      memberId: member.id,
+      memberName,
+      lastMessage,
+      lastMessageAt,
+      isMine,
+      unreadCount: unreadRow?.cnt || 0,
+      hasMessages: !!lastMsg
+    });
   }
 
-  // Sort by most recent message first
-  conversations.sort((a, b) => b.lastMessageAt - a.lastMessageAt);
+  // Sort: conversations with messages first (by recency), then members without messages
+  conversations.sort((a, b) => {
+    if (a.lastMessageAt && b.lastMessageAt) return b.lastMessageAt - a.lastMessageAt;
+    if (a.lastMessageAt) return -1;
+    if (b.lastMessageAt) return 1;
+    return (a.memberName || '').localeCompare(b.memberName || '');
+  });
 
   res.json({ success: true, conversations });
 });
 
 // ─── GET /api/kinmentor/messages/:memberId ─────────────────────────────────────
-// KinMentor reads messages with a specific member
+// KinMentor reads messages with a specific member.
+// Optional query param: ?since=UNIX_TIMESTAMP — return only messages newer than this time
 router.get('/messages/:memberId', requireAuth, requireKinMentor, (req, res) => {
   const db = getDb();
-  const { decrypt } = require('../middleware/encrypt');
   const memberId = parseInt(req.params.memberId);
+  const since = req.query.since ? parseInt(req.query.since) : 0;
+
+  if (!memberId || isNaN(memberId)) return res.status(400).json({ success: false, message: 'Invalid member ID' });
 
   // Verify this member is linked to this mentor: assigned OR has a session together
   const isAssigned = db.prepare('SELECT id FROM kinmember_profiles WHERE user_id = ? AND assigned_mentor_id = ?')
@@ -679,27 +697,33 @@ router.get('/messages/:memberId', requireAuth, requireKinMentor, (req, res) => {
   if (!isAssigned && !hasSession) return res.status(403).json({ success: false, message: 'Member not linked to you' });
 
   const msgs = db.prepare(`
-    SELECT cm.*, u.name AS sender_name
+    SELECT cm.id, cm.sender_id, cm.message_enc, cm.is_read, cm.created_at
     FROM chat_messages cm
-    JOIN users u ON u.id = cm.sender_id
-    WHERE (cm.sender_id = ? AND cm.receiver_id = ?)
-       OR (cm.sender_id = ? AND cm.receiver_id = ?)
+    WHERE ((cm.sender_id = ? AND cm.receiver_id = ?)
+        OR (cm.sender_id = ? AND cm.receiver_id = ?))
+      AND cm.created_at > ?
     ORDER BY cm.created_at ASC
-    LIMIT 200
-  `).all(memberId, req.user.id, req.user.id, memberId);
+    LIMIT 300
+  `).all(memberId, req.user.id, req.user.id, memberId, since);
 
   // Mark messages from member as read
-  db.prepare('UPDATE chat_messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ?')
-    .run(memberId, req.user.id);
+  if (msgs.length > 0) {
+    db.prepare('UPDATE chat_messages SET is_read = 1 WHERE sender_id = ? AND receiver_id = ?')
+      .run(memberId, req.user.id);
+  }
 
   res.json({
     success: true,
-    messages: msgs.map(m => ({
-      id: m.id,
-      message: decrypt(m.message_enc),
-      isMine: m.sender_id === req.user.id,
-      createdAt: m.created_at
-    }))
+    messages: msgs.map(m => {
+      let message = '';
+      try { message = m.message_enc ? decrypt(m.message_enc) : ''; } catch {}
+      return {
+        id: m.id,
+        message,
+        isMine: Number(m.sender_id) === Number(req.user.id),
+        createdAt: m.created_at
+      };
+    })
   });
 });
 
